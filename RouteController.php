@@ -5,7 +5,7 @@
  * replace the SystemName based on the Folder
  *
 */
-namespace App\Http\Controllers\SystemName;
+namespace App\Http\Controllers\LMS;
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Controller;
