@@ -5,7 +5,7 @@
  * replace the SystemName based on the Folder
  *
 */
-namespace App\Http\Controllers\SystemName;
+namespace App\Http\Controllers\LMS;
 
 use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
@@ -91,18 +91,18 @@ class CourseController extends Controller
 
             // This section is intended for pagination
             if ($params->has('offset')) {
-                $columns = ["id", "course_name", "date_time_added"];
-                $query_result = $this->db->table($this->table)->select($columns)->where('is_deleted', '!=', 1)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
+                $columns = ["id", "course_name", "status", "date_time_added"];
+                $query_result = $this->db->table($this->table)->select($columns)->where('is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
                 return $this->response->buildApiResponse($query_result, $columns);
             }
 
             // This section is intended for table search
             if ($params->has('search_keyword')) {
-                $columns = ["id", "course_name", "date_time_added"];
+                $columns = ["id", "course_name", "status", "date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $query_result = $this->db->table($this->table)
                 ->select($columns)
-                ->where('is_deleted', '!=', 1)
+                ->where('is_deleted', '=', 0)
                 ->where(function ($query) use ($keyword) {
                     $query->where('id', 'like', '%' . $keyword . '%')
                           ->orWhere('course_name', 'like', '%' . $keyword . '%')
@@ -147,6 +147,7 @@ class CourseController extends Controller
             $this->db->beginTransaction();
 
             //insert to table
+            $request['date_time_added'] = date('Y-m-d H:i:s');
             $request['id'] = $this->db->table($this->table)->insertGetId($request);
 
             if($request['id']) {
