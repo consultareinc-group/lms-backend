@@ -90,11 +90,27 @@ class CourseController extends Controller
         try{
 
             // This section is intended for pagination
-            if ($params->query('offset')) {
-                $query_result = $this->db->table($this->table)->select($this->response_column)->where('is_deleted', '!=', 1)->offset($params->query('offset'))->limit(100)->get();
-                return $this->response->buildApiResponse($query_result, $this->response_column);
+            if ($params->has('offset')) {
+                $columns = ["id", "course_name", "date_time_added"];
+                $query_result = $this->db->table($this->table)->select($columns)->where('is_deleted', '!=', 1)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
+                return $this->response->buildApiResponse($query_result, $columns);
             }
 
+            // This section is intended for table search
+            if ($params->has('search_keyword')) {
+                $columns = ["id", "course_name", "date_time_added"];
+                $keyword = trim($params->query('search_keyword'), '"');
+                $query_result = $this->db->table($this->table)
+                ->select($columns)
+                ->where('is_deleted', '!=', 1)
+                ->where(function ($query) use ($keyword) {
+                    $query->where('id', 'like', '%' . $keyword . '%')
+                          ->orWhere('course_name', 'like', '%' . $keyword . '%')
+                          ->orWhere('date_time_added', 'like', '%' . $keyword . '%');
+                })
+                ->get();
+                return $this->response->buildApiResponse($query_result, $columns);
+            }
 
         }
         catch(QueryException  $e){
