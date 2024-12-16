@@ -45,7 +45,6 @@ class CourseController extends Controller
         "course_description",
         "video_link",
         "status",
-        "quizzes"
     ];
 
     /**
@@ -75,7 +74,6 @@ class CourseController extends Controller
         "date_time_added",
         "date_time_updated",
         "is_deleted",
-        "quizzes"
     ];
 
     /**
@@ -134,17 +132,6 @@ class CourseController extends Controller
 
         $request = $request->all();
 
-
-
-        // foreach($request['quizzes'] as $key => $value) {
-        //     $request['quizzes'][$key]['course_id'] = 1;
-        // }
-
-        // print_r($request);
-        // return;
-
-
-
         if(!empty($request)){
             foreach ($request as $field => $value) {
                 if (!in_array($field, $this->accepted_parameters)) {
@@ -167,30 +154,9 @@ class CourseController extends Controller
 
             $this->db->beginTransaction();
 
-            // exclude key name quizzes from course column query insertion
-            $quizzes = $request['quizzes'];
-
-            //insert course
-            unset($request['quizzes']);
+            //insert to table
             $request['date_time_added'] = date('Y-m-d H:i:s');
             $request['id'] = $this->db->table($this->table)->insertGetId($request);
-
-            // bind course id to quizzes
-            foreach($quizzes as $key => $value) {
-                $quizzes[$key]['course_id'] = $request['id'];
-            }
-
-            // insert quizzes
-            $this->db->table('lms_quizzes')->insert($quizzes);
-            $lastId = $this->db->getPdo()->lastInsertId();
-            $count = count($quizzes);
-            $ids = range($lastId - $count + 1, $lastId);
-
-            // bring back the key name quizzes to include in response column
-            $request['quizzes'] = $quizzes;
-
-            // print_r($ids);
-
 
             if($request['id']) {
                 $this->db->commit();
@@ -313,5 +279,68 @@ class CourseController extends Controller
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
+    }
+
+    public function postQuiz(Request $request){
+
+
+        $request = $request->all();
+
+        $accepted_parameters = [
+            "course_id",
+            "quiz_name",
+            "passing_percentage",
+        ];
+
+        if(!empty($request)){
+            foreach ($request as $field => $value) {
+                if (!in_array($field, $accepted_parameters)) {
+                    return $this->response->invalidParameterResponse();
+                }
+            }
+        }
+
+        $required_fields = [
+            "course_id",
+            "quiz_name",
+            "passing_percentage",
+        ];
+
+        //check if the required fields are filled and has values
+        foreach ($required_fields as $field) {
+            if (!array_key_exists($field, $request)) {
+                if(empty($request[$field])){
+                    return $this->response->requiredFieldMissingResponse();
+                }
+
+            }
+        }
+
+        try{
+
+            $this->db->beginTransaction();
+
+            //insert to table
+            $request['date_time_added'] = date('Y-m-d H:i:s');
+            $request['id'] = $this->db->table('lms_quizzes')->insertGetId($request);
+
+            if($request['id']) {
+                $this->db->commit();
+                $response_column = [
+                    "id",
+                    "quiz_name",
+                    "passing_percentage",
+                ];
+                return $this->response->buildApiResponse($request, $response_column);
+            } else{
+                $this->db->rollback();
+                return $this->response->errorResponse("Data Saved Unsuccessfully");
+            }
+        }
+        catch(QueryException $e){
+            // Return validation errors without redirecting
+            return $this->response->errorResponse($e);
+        }
+
     }
 }
