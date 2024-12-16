@@ -45,6 +45,7 @@ class CourseController extends Controller
         "course_description",
         "video_link",
         "status",
+        "quizzes"
     ];
 
     /**
@@ -74,6 +75,7 @@ class CourseController extends Controller
         "date_time_added",
         "date_time_updated",
         "is_deleted",
+        "quizzes"
     ];
 
     /**
@@ -89,11 +91,18 @@ class CourseController extends Controller
 
         try{
 
+            $query_result = $columns = null;
+
+            //This section is intended for fetching specific course record
+            if ($id) {
+                $columns = ["id", "course_name", "status", "video_link", "course_description"];
+                $query_result = $this->db->table($this->table)->select($columns)->where('id',$id)->get();
+            }
+
             // This section is intended for pagination
             if ($params->has('offset')) {
                 $columns = ["id", "course_name", "status", "date_time_added"];
                 $query_result = $this->db->table($this->table)->select($columns)->where('is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
-                return $this->response->buildApiResponse($query_result, $columns);
             }
 
             // This section is intended for table search
@@ -109,8 +118,9 @@ class CourseController extends Controller
                           ->orWhere('date_time_added', 'like', '%' . $keyword . '%');
                 })
                 ->get();
-                return $this->response->buildApiResponse($query_result, $columns);
             }
+
+            return $this->response->buildApiResponse($query_result, $columns);
 
         }
         catch(QueryException  $e){
@@ -123,6 +133,17 @@ class CourseController extends Controller
 
 
         $request = $request->all();
+
+
+
+        // foreach($request['quizzes'] as $key => $value) {
+        //     $request['quizzes'][$key]['course_id'] = 1;
+        // }
+
+        // print_r($request);
+        // return;
+
+
 
         if(!empty($request)){
             foreach ($request as $field => $value) {
@@ -146,9 +167,30 @@ class CourseController extends Controller
 
             $this->db->beginTransaction();
 
-            //insert to table
+            // exclude key name quizzes from course column query insertion
+            $quizzes = $request['quizzes'];
+
+            //insert course
+            unset($request['quizzes']);
             $request['date_time_added'] = date('Y-m-d H:i:s');
             $request['id'] = $this->db->table($this->table)->insertGetId($request);
+
+            // bind course id to quizzes
+            foreach($quizzes as $key => $value) {
+                $quizzes[$key]['course_id'] = $request['id'];
+            }
+
+            // insert quizzes
+            $this->db->table('lms_quizzes')->insert($quizzes);
+            $lastId = $this->db->getPdo()->lastInsertId();
+            $count = count($quizzes);
+            $ids = range($lastId - $count + 1, $lastId);
+
+            // bring back the key name quizzes to include in response column
+            $request['quizzes'] = $quizzes;
+
+            // print_r($ids);
+
 
             if($request['id']) {
                 $this->db->commit();
