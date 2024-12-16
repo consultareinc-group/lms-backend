@@ -81,7 +81,9 @@ class CourseController extends Controller
      * modify table name
      *
      * */
-    protected $table = 'lms_courses';
+    protected $table_courses = 'lms_courses';
+    protected $table_quizzes = 'lms_quizzes';
+    protected $table_questions = 'lms_questions';
 
 
 
@@ -93,21 +95,21 @@ class CourseController extends Controller
 
             //This section is intended for fetching specific course record
             if ($id) {
-                $columns = ["id", "course_name", "status", "video_link", "course_description"];
-                $query_result = $this->db->table($this->table)->select($columns)->where('id',$id)->get();
+                $columns = ["id", "course_name", "status", "video_link", "course_description", "date_time_added", "date_time_updated"];
+                $query_result = $this->db->table($this->table_courses)->select($columns)->where('id',$id)->get();
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
                 $columns = ["id", "course_name", "status", "date_time_added"];
-                $query_result = $this->db->table($this->table)->select($columns)->where('is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
+                $query_result = $this->db->table($this->table_courses)->select($columns)->where('is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
             }
 
             // This section is intended for table search
             if ($params->has('search_keyword')) {
                 $columns = ["id", "course_name", "status", "date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
-                $query_result = $this->db->table($this->table)
+                $query_result = $this->db->table($this->table_courses)
                 ->select($columns)
                 ->where('is_deleted', '=', 0)
                 ->where(function ($query) use ($keyword) {
@@ -156,7 +158,7 @@ class CourseController extends Controller
 
             //insert to table
             $request['date_time_added'] = date('Y-m-d H:i:s');
-            $request['id'] = $this->db->table($this->table)->insertGetId($request);
+            $request['id'] = $this->db->table($this->table_courses)->insertGetId($request);
 
             if($request['id']) {
                 $this->db->commit();
@@ -201,7 +203,7 @@ class CourseController extends Controller
         try{
             $this->db->beginTransaction();
 
-            if($this->db->table($this->table)->where('id', $request['id'])->update($request)){
+            if($this->db->table($this->table_courses)->where('id', $request['id'])->update($request)){
                 $this->db->commit();
                 return $this->response->buildApiResponse($request, $this->response_column);
             } else{
@@ -238,7 +240,7 @@ class CourseController extends Controller
 
             $this->db->beginTransaction();
 
-            if($this->db->table($this->table)->where('id', $request['id'])->update(["is_deleted" => 1])){
+            if($this->db->table($this->table_courses)->where('id', $request['id'])->update(["is_deleted" => 1])){
                 $this->db->commit();
                 return $this->response->successResponse("Data has been deleted!");
             } else{
@@ -276,6 +278,48 @@ class CourseController extends Controller
 
         }
         catch(QueryException $e){
+            // Return validation errors without redirecting
+            return $this->response->errorResponse($e);
+        }
+    }
+
+    public function getQuiz(Request $params, $id = null){
+
+        try{
+
+            $query_result = $columns = null;
+
+            //This section is intended for fetching specific course record
+            if ($id) {
+                $columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
+                $query_result = $this->db->table($this->table_quizzes)->select($columns)->where('id',$id)->get();
+            }
+
+            // This section is intended for pagination
+            if ($params->has('offset')) {
+                $columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
+                $query_result = $this->db->table($this->table_quizzes)->select($columns)->where('is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
+            }
+
+            // This section is intended for table search
+            if ($params->has('search_keyword')) {
+                $columns = ["id", "quiz_name", "date_time_added"];
+                $keyword = trim($params->query('search_keyword'), '"');
+                $query_result = $this->db->table($this->table_quizzes)
+                ->select($columns)
+                ->where('is_deleted', '=', 0)
+                ->where(function ($query) use ($keyword) {
+                    $query->where('id', 'like', '%' . $keyword . '%')
+                          ->orWhere('quiz_name', 'like', '%' . $keyword . '%')
+                          ->orWhere('date_time_added', 'like', '%' . $keyword . '%');
+                })
+                ->get();
+            }
+
+            return $this->response->buildApiResponse($query_result, $columns);
+
+        }
+        catch(QueryException  $e){
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
@@ -322,7 +366,7 @@ class CourseController extends Controller
 
             //insert to table
             $request['date_time_added'] = date('Y-m-d H:i:s');
-            $request['id'] = $this->db->table('lms_quizzes')->insertGetId($request);
+            $request['id'] = $this->db->table($this->table_quizzes)->insertGetId($request);
 
             if($request['id']) {
                 $this->db->commit();
@@ -336,6 +380,89 @@ class CourseController extends Controller
                 $this->db->rollback();
                 return $this->response->errorResponse("Data Saved Unsuccessfully");
             }
+        }
+        catch(QueryException $e){
+            // Return validation errors without redirecting
+            return $this->response->errorResponse($e);
+        }
+
+    }
+    public function postQuestion(Request $request){
+
+
+        $request = $request->all();
+
+        $accepted_parameters = [
+            "quiz_id",
+            "questions",
+        ];
+
+        if(!empty($request)){
+            foreach ($request as $field => $value) {
+                if (!in_array($field, $accepted_parameters)) {
+                    return $this->response->invalidParameterResponse();
+                }
+            }
+        }
+
+        $required_fields = [
+            "quiz_id",
+            "questions",
+        ];
+
+        //check if the required fields are filled and has values
+        foreach ($required_fields as $field) {
+            if (!array_key_exists($field, $request)) {
+                if(empty($request[$field])){
+                    return $this->response->requiredFieldMissingResponse();
+                }
+
+            }
+        }
+
+        try{
+
+            $this->db->beginTransaction();
+
+            foreach($request['questions'] as $question) {
+
+
+                $questions = [
+                    'quiz_id' => $request['quiz_id'],
+                    'question_text' => $question['question_text'],
+                    'date_time_added' => date('Y-m-d H:i:s')
+                ];
+
+                $question_id = $this->db->table($this->table_questions)->insertGetId($questions);
+                $request['id'] = $question_id;
+
+                 // Prepare choices for the current question
+                $choices = array_map(function ($choice) use ($question_id) {
+                    return [
+                        'question_id' => $question_id,
+                        'choice_text' => $choice['choice_text'],
+                        'explanation' => $choice['explanation'],
+                        'is_correct' => $choice['is_correct'],
+                    ];
+                }, $question['choices']);
+
+
+                $this->db->table('lms_choices')->insert($choices);
+            }
+
+            if($request['id']) {
+                $this->db->commit();
+                $response_column = [
+                    "id",
+                    "quiz_id",
+                    "questions",
+                ];
+                return $this->response->buildApiResponse($request, $response_column);
+            } else{
+                $this->db->rollback();
+                return $this->response->errorResponse("Data Saved Unsuccessfully");
+            }
+
         }
         catch(QueryException $e){
             // Return validation errors without redirecting
