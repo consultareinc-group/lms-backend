@@ -405,6 +405,63 @@ class CourseController extends Controller
 
     }
 
+    public function putQuiz(Request $request, $id){
+
+        $request = $request->all();
+
+        $this->accepted_parameters = [
+            "id",
+            "quiz_name",
+            "passing_percentage",
+        ];
+
+        if(empty($request)){
+            foreach ($request as $field => $value) {
+                if (!in_array($field, $this->accepted_parameters)) {
+                    return $this->response->invalidParameterResponse();
+                }
+            }
+        }
+
+        //check if the Ids matches
+        if($request['id'] != $id){
+            return $this->response->errorResponse("Ids Dont Match");
+        }
+
+        $this->required_fields = [
+            "id",
+            "quiz_name",
+            "passing_percentage",
+        ];
+
+        //check if the required fields are filled and has values
+        foreach ($this->required_fields as $field) {
+            if (!array_key_exists($field, $request)) {
+                if(empty($request[$field])){
+                    return $this->response->requiredFieldMissingResponse();
+                }
+            }
+        }
+
+        try{
+            $this->db->beginTransaction();
+
+            if($this->db->table($this->table_quizzes)->where('id', $request['id'])->update($request)){
+                $this->db->commit();
+                return $this->response->buildApiResponse($request, $this->response_columns);
+            } else{
+                $this->db->rollback();
+                return $this->response->errorResponse("Data Saved Unsuccessfully");
+            }
+
+        }
+        catch(QueryException $e){
+            // Return validation errors without redirecting
+            return $this->response->errorResponse($e);
+        }
+    }
+
+
     public function getQuestion(Request $params, $id = null){
 
         try{
