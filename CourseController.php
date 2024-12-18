@@ -64,7 +64,7 @@ class CourseController extends Controller
      * modify response column
      *
      * */
-    protected $response_column = [
+    protected $response_columns = [
         "id",
         "course_name",
         "course_description",
@@ -91,26 +91,26 @@ class CourseController extends Controller
 
         try{
 
-            $query_result = $columns = null;
+            $query_result = null;
 
             //This section is intended for fetching specific course record
             if ($id) {
-                $columns = ["id", "course_name", "status", "video_link", "course_description", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_courses)->select($columns)->where('id',$id)->get();
+                $this->response_columns = ["id", "course_name", "status", "video_link", "course_description", "date_time_added", "date_time_updated"];
+                $query_result = $this->db->table($this->table_courses)->select($this->response_columns)->where('id',$id)->get();
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
-                $columns = ["id", "course_name", "status", "date_time_added"];
-                $query_result = $this->db->table($this->table_courses)->select($columns)->where('is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
+                $this->response_columns = ["id", "course_name", "status", "date_time_added"];
+                $query_result = $this->db->table($this->table_courses)->select($this->response_columns)->where('is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
             }
 
             // This section is intended for table search
             if ($params->has('search_keyword')) {
-                $columns = ["id", "course_name", "status", "date_time_added"];
+                $this->response_columns = ["id", "course_name", "status", "date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $query_result = $this->db->table($this->table_courses)
-                ->select($columns)
+                ->select($this->response_columns)
                 ->where('is_deleted', '=', 0)
                 ->where(function ($query) use ($keyword) {
                     $query->where('id', 'like', '%' . $keyword . '%')
@@ -120,7 +120,7 @@ class CourseController extends Controller
                 ->get();
             }
 
-            return $this->response->buildApiResponse($query_result, $columns);
+            return $this->response->buildApiResponse($query_result, $this->response_columns);
 
         }
         catch(QueryException  $e){
@@ -287,26 +287,26 @@ class CourseController extends Controller
 
         try{
 
-            $query_result = $columns = null;
+            $query_result = null;
 
             //This section is intended for fetching specific quiz record
             if ($id) {
-                $columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_quizzes)->select($columns)->where('id',$id)->get();
+                $this->response_columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
+                $query_result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('id',$id)->get();
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
-                $columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_quizzes)->select($columns)->where('is_deleted', '=', 0)->where('course_id', $params->query('course_id'))->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
+                $this->response_columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
+                $query_result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('is_deleted', '=', 0)->where('course_id', $params->query('course_id'))->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
             }
 
             // This section is intended for table search
             if ($params->has('search_keyword')) {
-                $columns = ["id", "quiz_name", "date_time_added"];
+                $this->response_columns = ["id", "quiz_name", "date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $query_result = $this->db->table($this->table_quizzes)
-                ->select($columns)
+                ->select($this->response_columns)
                 ->where('is_deleted', '=', 0)
                 ->where(function ($query) use ($keyword) {
                     $query->where('id', 'like', '%' . $keyword . '%')
@@ -316,7 +316,7 @@ class CourseController extends Controller
                 ->get();
             }
 
-            return $this->response->buildApiResponse($query_result, $columns);
+            return $this->response->buildApiResponse($query_result, $this->response_columns);
 
         }
         catch(QueryException  $e){
@@ -330,7 +330,7 @@ class CourseController extends Controller
 
         $request = $request->all();
 
-        $accepted_parameters = [
+        $this->accepted_parameters = [
             "course_id",
             "quiz_name",
             "passing_percentage",
@@ -338,20 +338,20 @@ class CourseController extends Controller
 
         if(!empty($request)){
             foreach ($request as $field => $value) {
-                if (!in_array($field, $accepted_parameters)) {
+                if (!in_array($field, $this->accepted_parameters)) {
                     return $this->response->invalidParameterResponse();
                 }
             }
         }
 
-        $required_fields = [
+        $this->required_fields = [
             "course_id",
             "quiz_name",
             "passing_percentage",
         ];
 
         //check if the required fields are filled and has values
-        foreach ($required_fields as $field) {
+        foreach ($this->required_fields as $field) {
             if (!array_key_exists($field, $request)) {
                 if(empty($request[$field])){
                     return $this->response->requiredFieldMissingResponse();
@@ -370,12 +370,12 @@ class CourseController extends Controller
 
             if($request['id']) {
                 $this->db->commit();
-                $response_column = [
+                $this->response_columns = [
                     "id",
                     "quiz_name",
                     "passing_percentage",
                 ];
-                return $this->response->buildApiResponse($request, $response_column);
+                return $this->response->buildApiResponse($request, $this->response_columns);
             } else{
                 $this->db->rollback();
                 return $this->response->errorResponse("Data Saved Unsuccessfully");
@@ -392,18 +392,18 @@ class CourseController extends Controller
 
         try{
 
-            $query_result = $columns = null;
+            $query_result = null;
 
             //This section is intended for fetching specific question record
             if ($id) {
-                $columns = ["id", "question_text", "marks", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_questions)->select($columns)->where('id',$id)->get();
+                $this->response_columns = ["id", "question_text", "marks", "date_time_added", "date_time_updated"];
+                $query_result = $this->db->table($this->table_questions)->select($this->response_columns)->where('id',$id)->get();
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
-                $columns = ["lms_questions.id as question_id", "question_text", "marks", "date_time_added", "date_time_updated", "lms_choices.choice_text","lms_choices.explanation","lms_choices.is_correct"];
-                $query_result = $this->db->table($this->table_questions)->select($columns)->where('is_deleted', '=', 0)->where('quiz_id', $params->query('quiz_id'))->leftJoin("lms_choices", "{$this->table_questions}.id", '=', "lms_choices.question_id")->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder("{$this->table_questions}.id", 'desc')->get();
+                $this->response_columns = ["lms_questions.id as question_id", "question_text", "marks", "date_time_added", "date_time_updated", "lms_choices.choice_text","lms_choices.explanation","lms_choices.is_correct"];
+                $query_result = $this->db->table($this->table_questions)->select($this->response_columns)->where('is_deleted', '=', 0)->where('quiz_id', $params->query('quiz_id'))->leftJoin("lms_choices", "{$this->table_questions}.id", '=', "lms_choices.question_id")->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder("{$this->table_questions}.id", 'desc')->get();
 
 
                 // Group choices under each question
@@ -440,10 +440,10 @@ class CourseController extends Controller
 
             // This section is intended for table search
             if ($params->has('search_keyword')) {
-                $columns = ["id", "question_text", "marks"];
+                $this->response_columns = ["id", "question_text", "marks"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $query_result = $this->db->table($this->table_questions)
-                ->select($columns)
+                ->select($this->response_columns)
                 ->where('is_deleted', '=', 0)
                 ->where(function ($query) use ($keyword) {
                     $query->where('id', 'like', '%' . $keyword . '%')
@@ -453,7 +453,7 @@ class CourseController extends Controller
                 ->get();
             }
 
-            return $this->response->buildApiResponse($query_result, $columns);
+            return $this->response->buildApiResponse($query_result, $this->response_columns);
 
         }
         catch(QueryException  $e){
@@ -466,26 +466,26 @@ class CourseController extends Controller
 
         $request = $request->all();
 
-        $accepted_parameters = [
+        $this->accepted_parameters = [
             "quiz_id",
             "questions",
         ];
 
         if(!empty($request)){
             foreach ($request as $field => $value) {
-                if (!in_array($field, $accepted_parameters)) {
+                if (!in_array($field, $this->accepted_parameters)) {
                     return $this->response->invalidParameterResponse();
                 }
             }
         }
 
-        $required_fields = [
+        $this->required_fields = [
             "quiz_id",
             "questions",
         ];
 
         //check if the required fields are filled and has values
-        foreach ($required_fields as $field) {
+        foreach ($this->required_fields as $field) {
             if (!array_key_exists($field, $request)) {
                 if(empty($request[$field])){
                     return $this->response->requiredFieldMissingResponse();
@@ -526,12 +526,12 @@ class CourseController extends Controller
 
             if($request['id']) {
                 $this->db->commit();
-                $response_column = [
+                $this->response_columns = [
                     "id",
                     "quiz_id",
                     "questions",
                 ];
-                return $this->response->buildApiResponse($request, $response_column);
+                return $this->response->buildApiResponse($request, $this->response_columns);
             } else{
                 $this->db->rollback();
                 return $this->response->errorResponse("Data Saved Unsuccessfully");
