@@ -162,7 +162,7 @@ class CourseController extends Controller
 
             if($request['id']) {
                 $this->db->commit();
-                return $this->response->buildApiResponse($request, $this->response_column);
+                return $this->response->buildApiResponse($request, $this->response_columns);
             } else{
                 $this->db->rollback();
                 return $this->response->errorResponse("Data Saved Unsuccessfully");
@@ -178,6 +178,15 @@ class CourseController extends Controller
     public function putCourse(Request $request, $id){
 
         $request = $request->all();
+
+        $this->accepted_parameters = [
+            "id",
+            "course_name",
+            "course_description",
+            "video_link",
+            "status",
+        ];
+
         if(empty($request)){
             foreach ($request as $field => $value) {
                 if (!in_array($field, $this->accepted_parameters)) {
@@ -190,6 +199,14 @@ class CourseController extends Controller
         if($request['id'] != $id){
             return $this->response->errorResponse("Ids Dont Match");
         }
+
+        $this->required_fields = [
+            "id",
+            "course_name",
+            "course_description",
+            "video_link",
+            "status",
+        ];
 
         //check if the required fields are filled and has values
         foreach ($this->required_fields as $field) {
@@ -205,7 +222,7 @@ class CourseController extends Controller
 
             if($this->db->table($this->table_courses)->where('id', $request['id'])->update($request)){
                 $this->db->commit();
-                return $this->response->buildApiResponse($request, $this->response_column);
+                return $this->response->buildApiResponse($request, $this->response_columns);
             } else{
                 $this->db->rollback();
                 return $this->response->errorResponse("Data Saved Unsuccessfully");
