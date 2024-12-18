@@ -17,10 +17,10 @@ class RouteController extends Controller
 
         //rename system-name the system name and CourseController to Module API Controller
         Route::prefix('lms')->group(function () {
-            Route::get('/course/{id?}', [CourseController::class, 'get']);
-            Route::post('/course', [CourseController::class, 'post']);
-            Route::put('/course/{id}', [CourseController::class, 'put']);
-            Route::delete('/course/{id}', [CourseController::class, 'delete']);
+            Route::get('/course/{id?}', [CourseController::class, 'getCourse']);
+            Route::post('/course', [CourseController::class, 'postCourse']);
+            Route::put('/course/{id}', [CourseController::class, 'putCourse']);
+            Route::delete('/course/{id}', [CourseController::class, 'deleteCourse']);
 
             Route::get('/quiz/{id?}', [CourseController::class, 'getQuiz']);
             Route::post('/quiz', [CourseController::class, 'postQuiz']);
