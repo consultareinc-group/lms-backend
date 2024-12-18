@@ -87,7 +87,7 @@ class CourseController extends Controller
 
 
 
-    public function get(Request $params, $id = null){
+    public function getCourse(Request $params, $id = null){
 
         try{
 
@@ -129,7 +129,7 @@ class CourseController extends Controller
         }
     }
 
-    public function post(Request $request){
+    public function postCourse(Request $request){
 
 
         $request = $request->all();
@@ -175,7 +175,7 @@ class CourseController extends Controller
 
     }
 
-    public function put(Request $request, $id){
+    public function putCourse(Request $request, $id){
 
         $request = $request->all();
         if(empty($request)){
@@ -218,7 +218,7 @@ class CourseController extends Controller
         }
     }
 
-    public function delete(Request $request, $id){
+    public function deleteCourse(Request $request, $id){
 
 
          //check if the id is numeric and has value
@@ -289,7 +289,7 @@ class CourseController extends Controller
 
             $query_result = $columns = null;
 
-            //This section is intended for fetching specific course record
+            //This section is intended for fetching specific quiz record
             if ($id) {
                 $columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
                 $query_result = $this->db->table($this->table_quizzes)->select($columns)->where('id',$id)->get();
@@ -298,7 +298,7 @@ class CourseController extends Controller
             // This section is intended for pagination
             if ($params->has('offset')) {
                 $columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_quizzes)->select($columns)->where('is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
+                $query_result = $this->db->table($this->table_quizzes)->select($columns)->where('is_deleted', '=', 0)->where('course_id', $params->query('course_id'))->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
             }
 
             // This section is intended for table search
@@ -386,6 +386,80 @@ class CourseController extends Controller
             return $this->response->errorResponse($e);
         }
 
+    }
+
+    public function getQuestion(Request $params, $id = null){
+
+        try{
+
+            $query_result = $columns = null;
+
+            //This section is intended for fetching specific question record
+            if ($id) {
+                $columns = ["id", "question_text", "marks", "date_time_added", "date_time_updated"];
+                $query_result = $this->db->table($this->table_questions)->select($columns)->where('id',$id)->get();
+            }
+
+            // This section is intended for pagination
+            if ($params->has('offset')) {
+                $columns = ["lms_questions.id as question_id", "question_text", "marks", "date_time_added", "date_time_updated", "lms_choices.choice_text","lms_choices.explanation","lms_choices.is_correct"];
+                $query_result = $this->db->table($this->table_questions)->select($columns)->where('is_deleted', '=', 0)->where('quiz_id', $params->query('quiz_id'))->leftJoin("lms_choices", "{$this->table_questions}.id", '=', "lms_choices.question_id")->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder("{$this->table_questions}.id", 'desc')->get();
+
+
+                // Group choices under each question
+                $groupedQuestions = [];
+                foreach ($query_result as $row) {
+                    $questionId = $row->question_id;
+
+                    // Initialize the question if not already set
+                    if (!isset($groupedQuestions[$questionId])) {
+                        $groupedQuestions[$questionId] = [
+                            'question_id' => $row->question_id,
+                            'question_text' => $row->question_text,
+                            'marks' => $row->marks,
+                            'date_time_added' => $row->date_time_added,
+                            'date_time_updated' => $row->date_time_updated,
+                            'choices' => []
+                        ];
+                    }
+
+                    // Add choice information to the question's choices
+                    if (!is_null($row->choice_text)) {
+                        $groupedQuestions[$questionId]['choices'][] = [
+                            'choice_text' => $row->choice_text,
+                            'explanation' => $row->explanation,
+                            'is_correct' => $row->is_correct
+                        ];
+                    }
+                }
+
+                // Convert grouped data to an array
+                $finalResult = array_values($groupedQuestions);
+                $query_result = $finalResult;
+            }
+
+            // This section is intended for table search
+            if ($params->has('search_keyword')) {
+                $columns = ["id", "question_text", "marks"];
+                $keyword = trim($params->query('search_keyword'), '"');
+                $query_result = $this->db->table($this->table_questions)
+                ->select($columns)
+                ->where('is_deleted', '=', 0)
+                ->where(function ($query) use ($keyword) {
+                    $query->where('id', 'like', '%' . $keyword . '%')
+                          ->orWhere('question_text', 'like', '%' . $keyword . '%')
+                          ->orWhere('marks', 'like', '%' . $keyword . '%');
+                })
+                ->get();
+            }
+
+            return $this->response->buildApiResponse($query_result, $columns);
+
+        }
+        catch(QueryException  $e){
+            // Return validation errors without redirecting
+            return $this->response->errorResponse($e);
+        }
     }
     public function postQuestion(Request $request){
 
