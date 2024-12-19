@@ -84,6 +84,7 @@ class CourseController extends Controller
     protected $table_courses = 'lms_courses';
     protected $table_quizzes = 'lms_quizzes';
     protected $table_questions = 'lms_questions';
+    protected $table_choices = 'lms_choices';
 
 
 
@@ -309,7 +310,7 @@ class CourseController extends Controller
             //This section is intended for fetching specific quiz record
             if ($id) {
                 $this->response_columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('id',$id)->get();
+                $query_result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('id',$id)->first();
             }
 
             // This section is intended for pagination
@@ -466,12 +467,45 @@ class CourseController extends Controller
 
         try{
 
-            $query_result = null;
+            $query_result = [];
 
             //This section is intended for fetching specific question record
             if ($id) {
-                $this->response_columns = ["id", "question_text", "marks", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_questions)->select($this->response_columns)->where('id',$id)->get();
+                $this->response_columns = ["lms_questions.id as id", "question_text", "marks", "date_time_added", "date_time_updated", "lms_choices.id as choice_id", "lms_choices.choice_text","lms_choices.explanation","lms_choices.is_correct"];
+                $query_result = $this->db->table($this->table_questions)->select($this->response_columns)->where('is_deleted', '=', 0)->where("{$this->table_questions}.id", $id)->leftJoin("lms_choices", "{$this->table_questions}.id", '=', "lms_choices.question_id")->get();
+
+
+                // Group choices under each question
+                $groupedQuestions = [];
+                foreach ($query_result as $row) {
+                    $questionId = $row->id;
+
+                    // Initialize the question if not already set
+                    if (!isset($groupedQuestions[$questionId])) {
+                        $groupedQuestions[$questionId] = [
+                            'id' => $row->id,
+                            'question_text' => $row->question_text,
+                            'choices' => []
+                        ];
+                    }
+
+                    // Add choice information to the question's choices
+                    if (!is_null($row->choice_text)) {
+                        $groupedQuestions[$questionId]['choices'][] = [
+                            'id' => $row->choice_id,
+                            'choice_text' => $row->choice_text,
+                            'explanation' => $row->explanation,
+                            'is_correct' => $row->is_correct
+                        ];
+                    }
+                }
+
+                // Convert grouped data to an array
+                $finalResult = array_values($groupedQuestions);
+                $query_result = $finalResult;
+                // Define new response columns customed for questions and choices
+                $this->response_columns = ["id", "question_text", "marks", "date_time_added", "date_time_updated", "choices"];
+
             }
 
             // This section is intended for pagination
@@ -490,7 +524,6 @@ class CourseController extends Controller
                         $groupedQuestions[$questionId] = [
                             'id' => $row->id,
                             'question_text' => $row->question_text,
-                            'marks' => $row->marks,
                             'date_time_added' => $row->date_time_added,
                             'date_time_updated' => $row->date_time_updated,
                             'choices' => []
