@@ -35,13 +35,13 @@ class RouteController extends Controller
     public static function moduleRouteOpen()
     {
 
-        Route::get('/course/{id?}', [ApiController::class, 'getCourse']);
-        Route::get('/quiz/{id?}', [ApiController::class, 'getQuiz']);
-        Route::get('/quiz_by_course/{course_id}', action: [ApiController::class, 'getQuizByCourse']);
-        Route::get('/questions/{quiz_id}', action: [ApiController::class, 'getQuestionsByQuiz']);
-        Route::get('/logs/{id}', [ApiController::class, 'getLogs']);
-        Route::post('/logs', [ApiController::class, 'postLogs']);
-        Route::post('/answers', [ApiController::class, 'checkAnswers']);
+        Route::get('/examinee/course/{id?}', [ApiController::class, 'getCourse']);
+        Route::get('/examinee/quiz/{id?}', [ApiController::class, 'getQuiz']);
+        Route::get('/examinee/quiz_by_course/{course_id}', action: [ApiController::class, 'getQuizByCourse']);
+        Route::get('/examinee/questions/{quiz_id}', action: [ApiController::class, 'getQuestionsByQuiz']);
+        Route::get('/examinee/logs/{id}', [ApiController::class, 'getLogs']);
+        Route::post('/examinee/logs', [ApiController::class, 'postLogs']);
+        Route::post('/examinee/answers', [ApiController::class, 'checkAnswers']);
 
     }
 }
