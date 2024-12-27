@@ -152,14 +152,9 @@ class ApiController extends Controller
     public function getCourse(Request $request, $id = null)
     {
         try {
-            $query_result = $this->db->table("lms_courses")->select($this->course_response_column)->select($this->course_response_column)->get();
             if ($id) {
                 $query_result = $this->db->table("lms_courses")->select($this->course_response_column)->where('id', $id)->get();
             }
-            // if ($request->query('search_keyword')) {
-
-            //     $search = $request->query('search_keyword');
-            // }/
 
             return $this->response->buildApiResponse($query_result, $this->course_response_column);
         } catch (QueryException $e) {
@@ -175,10 +170,6 @@ class ApiController extends Controller
             if ($id) {
                 $query_result = $this->db->table("lms_quizzes")->select($this->quiz_response_column)->where('id', $id)->get();
             }
-            // if ($request->query('search_keyword')) {
-
-            //     $search = $request->query('search_keyword');
-            // }/
 
             return $this->response->buildApiResponse($query_result, $this->quiz_response_column);
         } catch (QueryException $e) {
