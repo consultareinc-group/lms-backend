@@ -15,12 +15,12 @@ class LMSRouteController extends Controller
 {
     public static function registerRoutes()
     {
-
-        //rename system-name the system name and ApiController to Module API Controller
-        Route::prefix('lms')->group(function () {
-
+        Route::prefix('lms')->middleware(['jwt', 'user-permission'])->group(function () {
             CourseRouteController::moduleRoute();
-            // Add other routes for other ApiController as needed
+        });
+
+        Route::prefix('lms')->group(function () {
+            CourseRouteController::moduleRouteOpen();
         });
 
     }

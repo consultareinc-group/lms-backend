@@ -31,4 +31,17 @@ class RouteController extends Controller
         Route::delete('/question/{id}', [QuestionController::class, 'delete']);
 
     }
+
+    public static function moduleRouteOpen()
+    {
+
+        Route::get('/course/{id?}', [ApiController::class, 'getCourse']);
+        Route::get('/quiz/{id?}', [ApiController::class, 'getQuiz']);
+        Route::get('/quiz_by_course/{course_id}', action: [ApiController::class, 'getQuizByCourse']);
+        Route::get('/questions/{quiz_id}', action: [ApiController::class, 'getQuestionsByQuiz']);
+        Route::get('/logs/{id}', [ApiController::class, 'getLogs']);
+        Route::post('/logs', [ApiController::class, 'postLogs']);
+        Route::post('/answers', [ApiController::class, 'checkAnswers']);
+
+    }
 }
