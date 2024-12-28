@@ -93,7 +93,7 @@ class CourseController extends Controller
             //This section is intended for fetching specific course record
             if ($id) {
                 $this->response_columns = ["id", "course_name", "status", "video_link", "course_description", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_courses)->select($this->response_columns)->where('id',$id)->get();
+                $query_result = $this->db->table($this->table_courses)->select($this->response_columns)->where('id',$id)->first();
             }
 
             // This section is intended for pagination
