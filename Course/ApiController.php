@@ -30,10 +30,10 @@ class ApiController extends Controller
         $this->response = new ResponseHelper($request);
         /**
          *
-         *  Rename system_database_connection based on preferred database on database.php
+         *  Rename lms based on preferred database on database.php
          *
          */
-        $this->db = DB::connection("system_database_connection");
+        $this->db = DB::connection("lms");
     }
 
     /**

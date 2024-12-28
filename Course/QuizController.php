@@ -28,10 +28,10 @@ class QuizController extends Controller
         $this->response = new ResponseHelper($request);
         /**
          *
-         *  Rename system_database_connection based on preferred database on database.php
+         *  Rename lms based on preferred database on database.php
          *
         */
-        $this->db = DB::connection("system_database_connection");
+        $this->db = DB::connection("lms");
     }
 
      /**
@@ -209,13 +209,19 @@ class QuizController extends Controller
         try{
             $this->db->beginTransaction();
 
-            if($this->db->table($this->table_quizzes)->where('id', $request['id'])->update($request)){
-                $this->db->commit();
-                return $this->response->buildApiResponse($request, $this->response_columns);
-            } else{
-                $this->db->rollback();
-                return $this->response->errorResponse("Data Saved Unsuccessfully");
+            // Check if the data hasn't changed.
+            $exists = $this->db->table($this->table_quizzes)->where('id', $id)->where($request)->exists();
+
+            if (!$exists) {
+                $result = $this->db->table($this->table_quizzes)->where('id', $request['id'])->update($request);
+                if (!$result) {
+                    $this->db->rollback();
+                    return $this->response->errorResponse("Data Saved Unsuccessfully");
+                }
             }
+
+            $this->db->commit();
+            return $this->response->buildApiResponse($request, $this->response_columns);
 
         }
         catch(QueryException $e){

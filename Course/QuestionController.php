@@ -28,10 +28,10 @@ class QuestionController extends Controller
         $this->response = new ResponseHelper($request);
         /**
          *
-         *  Rename system_database_connection based on preferred database on database.php
+         *  Rename lms based on preferred database on database.php
          *
         */
-        $this->db = DB::connection("system_database_connection");
+        $this->db = DB::connection("lms");
     }
 
      /**
@@ -276,6 +276,108 @@ class QuestionController extends Controller
                 $this->db->rollback();
                 return $this->response->errorResponse("Data Saved Unsuccessfully");
             }
+
+        }
+        catch(QueryException $e){
+            // Return validation errors without redirecting
+            return $this->response->errorResponse($e);
+        }
+
+    }
+    public function put(Request $request, $id){
+
+
+        $request = $request->all();
+
+        $this->accepted_parameters = [
+            "id",
+            "question_text",
+            "choices",
+        ];
+
+        if(!empty($request)){
+            foreach ($request as $field => $value) {
+                if (!in_array($field, $this->accepted_parameters)) {
+                    return $this->response->invalidParameterResponse();
+                }
+            }
+        }
+
+        //check if the Ids matches
+        if($request['id'] != $id){
+            return $this->response->errorResponse("Ids Dont Match");
+        }
+
+        $this->required_fields = [
+            "id",
+            "question_text",
+            "choices",
+        ];
+
+        //check if the required fields are filled and has values
+        foreach ($this->required_fields as $field) {
+            if (!array_key_exists($field, $request)) {
+                if(empty($request[$field])){
+                    return $this->response->requiredFieldMissingResponse();
+                }
+
+            }
+        }
+
+        try{
+
+            $this->db->beginTransaction();
+
+            // Transform $request['choices'] into the format required for upsert
+            // $choicesData = array_map(function ($choice) use ($request) {
+            //     return [
+            //         'question_id' => $request['id'],
+            //         'choice_id' => $choice['id'] ?? null, // Handle cases where 'id' might not exist
+            //         'choice_text' => $choice['choice_text'] ?? '',
+            //         'explanation' => $choice['explanation'] ?? null,
+            //         'is_correct' => $choice['is_correct'] ?? 0,
+            //     ];
+            // }, $request['choices']);
+
+            $choices = $request['choices'];
+            unset($request['choices']);
+            // Check if the data hasn't changed.
+            $exists = $this->db->table($this->table_questions)->where('id', $id)->where($request)->exists();
+
+            if (!$exists) {
+                $result = $this->db->table($this->table_questions)->where('id', $id)->update($request);
+                if (!$result) {
+                    $this->db->rollback();
+                    return $this->response->errorResponse("The question was not saved successfully");
+                }
+            }
+
+             // delete choices based on question id
+            $result = $this->db->table($this->table_choices)->where('question_id', $id)->delete();
+            if (!$result) {
+                $this->db->rollback();
+                return $this->response->errorResponse("Choices were not deleted successfully");
+            }
+
+            // Remove the 'id' key from each choices
+            foreach ($choices as &$item) {
+                $item['question_id'] = $id;
+                unset($item['id']);
+            }
+
+            // insert fresh choices
+            $this->db->table($this->table_choices)->insert($choices);
+            $last_id = $this->db->getPdo()->lastInsertId();
+
+            if (!$last_id) {
+                $this->db->rollback();
+                return $this->response->errorResponse("Choices were not inserted successfully");
+            }
+
+            $this->db->commit();
+            return $this->response->buildApiResponse($request, $this->response_columns);
+
+
 
         }
         catch(QueryException $e){
