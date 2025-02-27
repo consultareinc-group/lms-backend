@@ -80,7 +80,14 @@ jobs:
           sed -i "s|'username' => 'system_database_username'|'username' => '${{ secrets.STAGING_LMS_DB_USERNAME }}'|" config/database.php
           STAGING_LMS_DB_PASSWORD=$(printf '%s' "${{ secrets.STAGING_LMS_DB_PASSWORD }}" | sed 's/[&/\]/\\&/g')
           sed -i "s|'password' => 'system_database_password'|'password' => '$STAGING_LMS_DB_PASSWORD'|" config/database.php
-
+   
+      # Update Routes Api 
+      - name: Update Routes Api settings
+        run: |
+          cd interlinkiq-backend
+          sed -i "s|use App\Http\Controllers\SystemName\SystemRouteController|use App\Http\Controllers\LMS\LMSRouteController|" routes/api.php
+          sed -i "s|SystemRouteController::registerRoutes()|LMSRouteController::registerRoutes()|" routes/api.php
+    
       # Update Public paths
       - name: Update Public settings
         run: |
