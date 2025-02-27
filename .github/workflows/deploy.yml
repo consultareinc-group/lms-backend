@@ -85,7 +85,7 @@ jobs:
       - name: Update Routes Api settings
         run: |
           cd interlinkiq-backend
-          sed -i "s|SystemName\SystemRouteController|LMS\LMSRouteController|" routes/api.php
+          sed -i "s|SystemName|LMS|" routes/api.php
           sed -i "s|SystemRouteController|LMSRouteController|" routes/api.php
     
       # Update Public paths
