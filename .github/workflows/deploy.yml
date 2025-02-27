@@ -25,7 +25,6 @@ jobs:
       # Clone interlinkiq-backend repository
       - name: Clone interlinkiq-backend repository
         run: |
-          cd app/Http/Controllers
           git clone https://USERNAME:${{ secrets.PERSONAL_TOKEN }}@github.com/consultareinc-group/interlinkiq-backend.git
           cd interlinkiq-backend
           git checkout base
