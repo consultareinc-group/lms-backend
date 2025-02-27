@@ -41,7 +41,7 @@ jobs:
       - name: Update CORS settings
         run: |
           cd interlinkiq-backend
-          sed -i "s|'allowed_origins' => \['\*'\]|'allowed_origins' => ['https://trainingace.pro', 'https://www.trainingace.pro']|" config/cors.php
+          sed -i "s|'allowed_origins' => \['\*'\]|'allowed_origins' => ['http://trainingace.pro', 'http://www.trainingace.pro']|" config/cors.php
           sed -i "s|'supports_credentials' => false|'supports_credentials' => true|" config/cors.php
 
       # Update JWT secret
