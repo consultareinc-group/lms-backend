@@ -74,10 +74,12 @@ jobs:
           sed -i "s|'username' => 'root'|'username' => '${{ secrets.STAGING_CIG_DB_USERNAME }}'|" config/database.php
           STAGING_CIG_DB_PASSWORD=$(printf '%s' "${{ secrets.STAGING_CIG_DB_PASSWORD }}" | sed 's/[&/\]/\\&/g')
           sed -i "s|'password' => ''|'password' => '$STAGING_CIG_DB_PASSWORD'|" config/database.php
-          sed -i "s|'database' => 'vendor_match'|'database' => '${{ secrets.STAGING_LMS_DB_NAME }}'|" config/database.php
-          sed -i "s|'username' => 'root'|'username' => '${{ secrets.STAGING_LMS_DB_USERNAME }}'|" config/database.php
+         
+          sed -i "s|'system_database_connection'|'lms'|" config/database.php
+          sed -i "s|'database' => 'system_database_name'|'database' => '${{ secrets.STAGING_LMS_DB_NAME }}'|" config/database.php
+          sed -i "s|'username' => 'system_database_username'|'username' => '${{ secrets.STAGING_LMS_DB_USERNAME }}'|" config/database.php
           STAGING_LMS_DB_PASSWORD=$(printf '%s' "${{ secrets.STAGING_LMS_DB_PASSWORD }}" | sed 's/[&/\]/\\&/g')
-          sed -i "s|'password' => ''|'password' => '$STAGING_LMS_DB_PASSWORD'|" config/database.php
+          sed -i "s|'password' => 'system_database_password'|'password' => '$STAGING_LMS_DB_PASSWORD'|" config/database.php
 
       # Update Public paths
       - name: Update Public settings
