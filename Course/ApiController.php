@@ -146,14 +146,22 @@ class ApiController extends Controller
      * modify table name
      *
      * */
-    protected $table = 'lms_courses';
+    protected $table_courses = 'lms_courses';
 
     //Get courses
-    public function getCourse(Request $request, $id = null)
+    public function getCourse(Request $params, $id = null)
     {
         try {
+            //This section is intended for fetching specific course record
             if ($id) {
-                $query_result = $this->db->table("lms_courses")->select($this->course_response_column)->where('id', $id)->get();
+                $this->response_columns = ["id", "course_name", "status", "video_link", "course_description", "date_time_added", "date_time_updated"];
+                $query_result = $this->db->table($this->table_courses)->select($this->course_response_column)->where('id',$id)->where('status',  1)->first();
+            }
+
+            // This section is intended for pagination
+            if ($params->has('offset')) {
+                $this->response_columns = ["id", "course_name", "status", "date_time_added"];
+                $query_result = $this->db->table($this->table_courses)->select($this->course_response_column)->where('is_deleted', 0)->where('status',  1)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
             }
 
             return $this->response->buildApiResponse($query_result, $this->course_response_column);
