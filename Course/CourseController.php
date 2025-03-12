@@ -41,6 +41,7 @@ class CourseController extends Controller
      * */
     protected $accepted_parameters = [
         "id",
+        "category_id",
         "course_name",
         "course_description",
         "video_link",
@@ -53,6 +54,7 @@ class CourseController extends Controller
      *
      * */
     protected $required_fields = [
+        "catergory_id",
         "course_name",
         "course_description",
         "video_link",
@@ -66,6 +68,8 @@ class CourseController extends Controller
      * */
     protected $response_columns = [
         "id",
+        "category_id",
+        "category_name",
         "course_name",
         "course_description",
         "number_of_quizzes",
@@ -92,30 +96,46 @@ class CourseController extends Controller
 
             //This section is intended for fetching specific course record
             if ($id) {
-                $this->response_columns = ["id", "course_name", "status", "video_link", "course_description", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_courses)->select($this->response_columns)->where('id',$id)->first();
+                $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.status", "cr.video_link", "cr.course_description", "cr.date_time_added", "cr.date_time_updated"];
+                $query_result = $this->db->table($this->table_courses. " as cr")->select($columns)->join("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.id',$id)->first();
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
-                $this->response_columns = ["id", "course_name", "status", "date_time_added"];
-                $query_result = $this->db->table($this->table_courses)->select($this->response_columns)->where('is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
+                $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
+                $query_result = $this->db->table($this->table_courses. " as cr")->select($columns)->join("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('cr.id', 'desc')->get();
             }
 
             // This section is intended for table search
             if ($params->has('search_keyword')) {
-                $this->response_columns = ["id", "course_name", "status", "date_time_added"];
+                $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
-                $query_result = $this->db->table($this->table_courses)
-                ->select($this->response_columns)
-                ->where('is_deleted', '=', 0)
+                $query_result = $this->db->table($this->table_courses. " as cr")
+                ->select($columns)
+                ->join("lms_categories as ct", "ct.id", "=", "cr.category_id")
+                ->where('cr.is_deleted', '=', 0)
                 ->where(function ($query) use ($keyword) {
-                    $query->where('id', 'like', '%' . $keyword . '%')
-                          ->orWhere('course_name', 'like', '%' . $keyword . '%')
-                          ->orWhere('date_time_added', 'like', '%' . $keyword . '%');
+                    $query->where('cr.id', 'like', '%' . $keyword . '%')
+                          ->orWhere('cr.course_name', 'like', '%' . $keyword . '%')
+                          ->orWhere('ct.category_name', 'like', '%' . $keyword . '%')
+                          ->orWhere('cr.date_time_added', 'like', '%' . $keyword . '%');
                 })
                 ->get();
             }
+
+            $this->response_columns = [
+                "id",
+                "category_id",
+                "category_name",
+                "course_name",
+                "course_description",
+                "number_of_quizzes",
+                "video_link",
+                "status",
+                "date_time_added",
+                "date_time_updated",
+                "is_deleted",
+            ];
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
 
@@ -178,6 +198,7 @@ class CourseController extends Controller
 
         $this->accepted_parameters = [
             "id",
+            "category_id",
             "course_name",
             "course_description",
             "video_link",
@@ -199,6 +220,7 @@ class CourseController extends Controller
 
         $this->required_fields = [
             "id",
+            "category_id",
             "course_name",
             "course_description",
             "video_link",
