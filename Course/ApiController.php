@@ -141,6 +141,8 @@ class ApiController extends Controller
         "date_time_completed"
     ];
 
+    protected $response_columns = [];
+
     /**
      *
      * modify table name
@@ -154,33 +156,42 @@ class ApiController extends Controller
         try {
             //This section is intended for fetching specific course record
             if ($id) {
-                $this->response_columns = ["id", "course_name", "status", "video_link", "course_description", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_courses)->select($this->course_response_column)->where('id',$id)->where('status',  1)->first();
+                $this->course_response_column = ["cr.id", "ct.category_name", "cr.course_name", "cr.status", "cr.video_link", "cr.course_description", "cr.date_time_added", "cr.date_time_updated"];
+                $query_result = $this->db->table($this->table_courses. " as cr")->select($this->course_response_column)->join("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.id', $id)->where('cr.status',  1)->first();
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
-                $this->response_columns = ["id", "course_name", "status", "date_time_added"];
-                $query_result = $this->db->table($this->table_courses)->select($this->course_response_column)->where('is_deleted', 0)->where('status',  1)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
+                $this->course_response_column = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
+                $query_result = $this->db->table($this->table_courses. " as cr")->select($this->course_response_column)->join("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.is_deleted', 0)->where('cr.status',  1)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('cr.id', 'desc')->get();
             }
 
              // This section is intended for searching published courses
              if ($params->has('search_keyword')) {
-                $this->response_columns = ["id", "course_name", "status", "date_time_added"];
+                $this->course_response_column = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
-                $query_result = $this->db->table($this->table_courses)
+                $category_id = $params->query('category_id');
+                $query_result = $this->db->table($this->table_courses. " as cr")
                 ->select($this->course_response_column)
-                ->where('status',  1)
-                ->where('is_deleted',0)
-                ->where(function ($query) use ($keyword) {
-                    $query->where('id', 'like', '%' . $keyword . '%')
-                          ->orWhere('course_name', 'like', '%' . $keyword . '%')
-                          ->orWhere('date_time_added', 'like', '%' . $keyword . '%');
+                ->join("lms_categories as ct", "ct.id", "=", "cr.category_id")
+                ->where('cr.status',  1)
+                ->where('cr.is_deleted',0)
+                ->where(function ($query) use ($keyword, $category_id) {
+                    if (!empty($category_id)) {
+                        $query->where('cr.course_name', 'like', '%' . $keyword . '%')
+                        ->where('cr.category_id', $category_id);
+                    } else {
+                        $query->where('cr.id', 'like', '%' . $keyword . '%')
+                          ->orWhere('cr.course_name', 'like', '%' . $keyword . '%')
+                          ->orWhere('ct.category_name', 'like', '%' . $keyword . '%');
+                    }
                 })
                 ->get();
             }
 
-            return $this->response->buildApiResponse($query_result, $this->course_response_column);
+            $this->response_columns = ["id", "category_name", "course_name", "status", "video_link", "course_description", "date_time_added", "date_time_updated"];
+
+            return $this->response->buildApiResponse($query_result, $this->response_columns);
         } catch (QueryException $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
