@@ -157,13 +157,13 @@ class ApiController extends Controller
             //This section is intended for fetching specific course record
             if ($id) {
                 $this->course_response_column = ["cr.id", "ct.category_name", "cr.course_name", "cr.status", "cr.video_link", "cr.course_description", "cr.date_time_added", "cr.date_time_updated"];
-                $query_result = $this->db->table($this->table_courses. " as cr")->select($this->course_response_column)->join("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.id', $id)->where('cr.status',  1)->first();
+                $query_result = $this->db->table($this->table_courses. " as cr")->select($this->course_response_column)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.id', $id)->where('cr.status',  1)->first();
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
                 $this->course_response_column = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
-                $query_result = $this->db->table($this->table_courses. " as cr")->select($this->course_response_column)->join("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.is_deleted', 0)->where('cr.status',  1)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('cr.id', 'desc')->get();
+                $query_result = $this->db->table($this->table_courses. " as cr")->select($this->course_response_column)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.is_deleted', 0)->where('cr.status',  1)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('cr.id', 'desc')->get();
             }
 
              // This section is intended for searching published courses
@@ -173,7 +173,7 @@ class ApiController extends Controller
                 $category_id = $params->query('category_id');
                 $query_result = $this->db->table($this->table_courses. " as cr")
                 ->select($this->course_response_column)
-                ->join("lms_categories as ct", "ct.id", "=", "cr.category_id")
+                ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
                 ->where('cr.status',  1)
                 ->where('cr.is_deleted',0)
                 ->where(function ($query) use ($keyword, $category_id) {
