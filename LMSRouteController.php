@@ -10,6 +10,7 @@ namespace App\Http\Controllers\LMS;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\LMS\Course\RouteController as CourseRouteController;
+use App\Http\Controllers\LMS\Category\RouteController as CategoryRouteController;
 
 class LMSRouteController extends Controller
 {
@@ -17,6 +18,7 @@ class LMSRouteController extends Controller
     {
         Route::prefix('lms')->middleware(['jwt', 'user-permission'])->group(function () {
             CourseRouteController::moduleRoute();
+            CategoryRouteController::moduleRoute();
         });
 
         Route::prefix('lms')->group(function () {
