@@ -54,7 +54,7 @@ class CourseController extends Controller
      *
      * */
     protected $required_fields = [
-        "catergory_id",
+        "category_id",
         "course_name",
         "course_description",
         "video_link",
@@ -110,15 +110,21 @@ class CourseController extends Controller
             if ($params->has('search_keyword')) {
                 $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
+                $category_id = $params->query('category_id');
                 $query_result = $this->db->table($this->table_courses. " as cr")
                 ->select($columns)
                 ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
                 ->where('cr.is_deleted', '=', 0)
-                ->where(function ($query) use ($keyword) {
-                    $query->where('cr.id', 'like', '%' . $keyword . '%')
+                ->where(function ($query) use ($keyword, $category_id) {
+                    if (empty($category_id)) {
+                        $query->where('cr.id', 'like', '%' . $keyword . '%')
                           ->orWhere('cr.course_name', 'like', '%' . $keyword . '%')
                           ->orWhere('ct.category_name', 'like', '%' . $keyword . '%')
                           ->orWhere('cr.date_time_added', 'like', '%' . $keyword . '%');
+                    } else {
+                        $query->where('cr.course_name', 'like', '%' . $keyword . '%')
+                          ->where('ct.category_id', $category_id);
+                    }
                 })
                 ->get();
             }
