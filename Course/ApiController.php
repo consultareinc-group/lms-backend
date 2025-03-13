@@ -179,6 +179,7 @@ class ApiController extends Controller
                 ->where(function ($query) use ($keyword, $category_id) {
                     if (!empty($category_id)) {
                         $query->where('cr.course_name', 'like', '%' . $keyword . '%')
+                        ->where('cr.course_description', 'like', '%' . $keyword . '%')
                         ->where('cr.category_id', $category_id);
                     } else {
                         $query->where('cr.id', 'like', '%' . $keyword . '%')
