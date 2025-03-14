@@ -16,7 +16,7 @@ class LMSRouteController extends Controller
     public static function registerRoutes()
     {
         Route::prefix('lms')->middleware(['jwt', 'user-permission'])->group(function () {
-            CategoryRouteController::moduleRoute();
+            CategoryRouteController::moduleRouteOpen();
         });
 
     }
