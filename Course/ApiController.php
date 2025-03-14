@@ -178,12 +178,16 @@ class ApiController extends Controller
                 ->where('cr.is_deleted',0)
                 ->where(function ($query) use ($keyword, $category_id) {
                     if (!empty($category_id)) {
-                        $query->where('cr.course_name', 'like', '%' . $keyword . '%')
-                        ->orWhere('cr.course_description', 'like', '%' . $keyword . '%')
-                        ->where('cr.category_id', $category_id);
+                        if (!empty($keyword)) {
+                            $query->where('cr.course_name', 'like', '%' . $keyword . '%')
+                            ->orWhere('cr.course_description', 'like', '%' . $keyword . '%');
+                        }
+                        $query->where('cr.category_id', $category_id);
+
                     } else {
                         $query->where('cr.id', 'like', '%' . $keyword . '%')
                           ->orWhere('cr.course_name', 'like', '%' . $keyword . '%')
+                          ->orWhere('cr.course_description', 'like', '%' . $keyword . '%')
                           ->orWhere('ct.category_name', 'like', '%' . $keyword . '%');
                     }
                 })
