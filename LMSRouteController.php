@@ -18,10 +18,10 @@ class LMSRouteController extends Controller
     {
         Route::prefix('lms')->middleware(['jwt', 'user-permission'])->group(function () {
             CourseRouteController::moduleRoute();
-            CategoryRouteController::moduleRoute();
         });
 
         Route::prefix('lms')->group(function () {
+            CategoryRouteController::moduleRouteOpen();
             CourseRouteController::moduleRouteOpen();
         });
 

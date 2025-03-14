@@ -12,7 +12,7 @@ use App\Http\Controllers\Controller;
 
 class RouteController extends Controller
 {
-    public static function moduleRoute()
+    public static function moduleRouteOpen()
     {
 
         Route::get('/category/{id?}', [CategoryController::class, 'get']);
