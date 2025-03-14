@@ -191,6 +191,7 @@ class ApiController extends Controller
                           ->orWhere('ct.category_name', 'like', '%' . $keyword . '%');
                     }
                 })
+                ->reorder('cr.id', 'desc')
                 ->get();
             }
 
