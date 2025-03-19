@@ -179,12 +179,6 @@ class CourseController extends Controller
 
             $this->db->beginTransaction();
 
-            $exists = $this->db->table($this->table_courses)->select('course_name')->where('course_name', $request['course_name'])->exists();
-
-            if ($exists) {
-                return $this->response->errorResponse("Course Name already exists!");
-            }
-
             //insert to table
             $request['date_time_added'] = date('Y-m-d H:i:s');
             $request['id'] = $this->db->table($this->table_courses)->insertGetId($request);
@@ -250,12 +244,6 @@ class CourseController extends Controller
 
         try{
             $this->db->beginTransaction();
-
-            $exists = $this->db->table($this->table_courses)->select('course_name')->where('course_name', $request['course_name'])->exists();
-
-            if ($exists) {
-                return $this->response->errorResponse("Course Name already exists!");
-            }
 
             // Check if the data hasn't changed.
             $exists = $this->db->table($this->table_courses)->where('id', $id)->where($request)->exists();
