@@ -94,6 +94,12 @@ class CategoryController extends Controller
 
             $this->db->beginTransaction();
 
+            $exists = $this->db->table($this->table_categories)->select('category_name')->where('category_name', $request['category_name'])->exists();
+
+            if ($exists) {
+                return $this->response->errorResponse("Category Name already exists!");
+            }
+
             //insert to table
             $request['id'] = $this->db->table($this->table_categories)->insertGetId($request);
 
@@ -139,6 +145,12 @@ class CategoryController extends Controller
 
         try{
             $this->db->beginTransaction();
+
+            $exists = $this->db->table($this->table_categories)->select('category_name')->where('category_name', $request['category_name'])->exists();
+
+            if ($exists) {
+                return $this->response->errorResponse("Category Name already exists!");
+            }
 
             // Check if the data hasn't changed.
             $exists = $this->db->table($this->table_categories)->where('id', $id)->where($request)->exists();
