@@ -6,20 +6,21 @@ use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Helpers\ResponseHelper;
 use App\Helpers\ValidationHelper;
+use App\Helpers\FileHelper;
 
-class CategoryController extends Controller
-{
+class CategoryController extends Controller {
 
     protected $response;
     protected $validation;
+    protected $file;
     protected $db;
-    public function __construct(Request $request)
-    {
+    public function __construct(Request $request) {
         $this->response = new ResponseHelper($request);
         $this->validation = new ValidationHelper();
-
+        $this->file = new FileHelper();
         $this->db = DB::connection("lms");
     }
 
@@ -32,183 +33,192 @@ class CategoryController extends Controller
     protected $table_categories = 'lms_categories';
 
 
-    public function get(Request $params, $id = null){
 
-        try{
+    public function get(Request $params, $id = null) {
+
+        try {
 
             $query_result = null;
 
             //This section is intended for fetching specific course record
             if ($id) {
-                $this->response_columns = ["id", "category_name", "category_description", "date_time_added"];
-                $query_result = $this->db->table($this->table_categories)->select($this->response_columns)->where('id',$id)->first();
+                $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp", "date_time_added"];
+                $query_result = $this->db->table($this->table_categories)->select($this->response_columns)->where('id', $id)->first();
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
-                $this->response_columns = ["id", "category_name", "category_description"];
+                $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp"];
                 $query_result = $this->db->table($this->table_categories)->select($this->response_columns)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
             }
 
             // This section is intended for table search
             if ($params->has('search_keyword')) {
-                $this->response_columns = ["id", "category_name", "category_description"];
+                $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $query_result = $this->db->table($this->table_categories)
-                ->select($this->response_columns)
-                ->where(function ($query) use ($keyword) {
-                    $query->where('category_name', 'like', '%' . $keyword . '%')
-                          ->orWhere('category_description', 'like', '%' . $keyword . '%');
-                })
-                ->get();
+                    ->select($this->response_columns)
+                    ->where(function ($query) use ($keyword) {
+                        $query->where('category_name', 'like', '%' . $keyword . '%')
+                            ->orWhere('category_description', 'like', '%' . $keyword . '%');
+                    })
+                    ->get();
             }
+
+            foreach ($query_result as &$qr) {
+                $qr->image_file_base64  = base64_encode(Storage::get('LMS/Categories/' . $qr->image_file_tmp));
+            }
+
+            $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp", "image_file_base64", "date_time_added"];
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
-
-        }
-        catch(QueryException  $e){
+        } catch (QueryException  $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
     }
 
-    public function post(Request $request){
-
+    public function post(Request $request, $id = null) {
         $this->accepted_parameters = [
             "category_name",
-            "category_description"
+            "category_description",
+            "image_file"
         ];
 
         $this->required_fields = [
             "category_name"
         ];
 
-        $request = $this->validation->validateRequest($request, $this->accepted_parameters, $this->required_fields);
+        // Validate request
+        $validatedData = $request->validate([
+            'category_name' => 'required|string|max:255',
+            'category_description' => 'nullable|string',
+            'image_file' => 'nullable|file|mimes:jpg,jpeg,png|max:2048'
+        ]);
 
-        //check if the $request has error validation key
-        if(isset($request['error_validation'])){
-            return $this->response->errorResponse($request['message']);
-        }
-
-        try{
-
+        try {
             $this->db->beginTransaction();
 
-            $exists = $this->db->table($this->table_categories)->select('category_name')->where('category_name', $request['category_name'])->exists();
+            if ($id) {
+                $category = $this->db->table($this->table_categories)->where('id', $id)->first();
 
-            if ($exists) {
-                return $this->response->errorResponse("Category Name already exists!");
-            }
-
-            //insert to table
-            $request['id'] = $this->db->table($this->table_categories)->insertGetId($request);
-
-            if($request['id']) {
-                $this->db->commit();
-                return $this->response->buildApiResponse($request, $this->response_columns);
-            } else{
-                $this->db->rollback();
-                return $this->response->errorResponse("Data Saved Unsuccessfully");
-            }
-        }
-        catch(QueryException $e){
-            // Return validation errors without redirecting
-            return $this->response->errorResponse($e);
-        }
-
-    }
-
-    public function put(Request $request, $id){
-
-        //check if the Ids matches
-        if($request['id'] != $id){
-            return $this->response->errorResponse("Ids Dont Match");
-        }
-
-        $this->accepted_parameters = [
-            "id",
-            "category_name",
-            "category_description"
-        ];
-
-        $this->required_fields = [
-            "id",
-            "category_name"
-        ];
-
-        $request = $this->validation->validateRequest($request, $this->accepted_parameters, $this->required_fields);
-
-        //check if the $request has error validation key
-        if(isset($request['error_validation'])){
-            return $this->response->errorResponse($request['message']);
-        }
-
-        try{
-            $this->db->beginTransaction();
-
-            $exists = $this->db->table($this->table_categories)->select('category_name')->where('category_name', $request['category_name'])->exists();
-
-            if ($exists) {
-                return $this->response->errorResponse("Category Name already exists!");
-            }
-
-            // Check if the data hasn't changed.
-            $exists = $this->db->table($this->table_categories)->where('id', $id)->where($request)->exists();
-
-            if (!$exists) {
-                $result = $this->db->table($this->table_categories)->where('id', $request['id'])->update($request);
-                if (!$result) {
-                    $this->db->rollback();
-                    return $this->response->errorResponse("Data Saved Unsuccessfully");
+                if (!$category) {
+                    return $this->response->errorResponse("Category not found.");
                 }
+
+                $exists = $this->db->table($this->table_categories)
+                    ->where('category_name', $validatedData['category_name'])
+                    ->where('id', '!=', $id)
+                    ->exists();
+
+                if ($exists) {
+                    return $this->response->errorResponse("Category Name already exists!");
+                }
+
+                if ($request->hasFile('image_file')) {
+                    $file = $request->file('image_file');
+
+                    if (!$file->isValid()) {
+                        return $this->response->errorResponse("Invalid file upload.");
+                    }
+
+                    $generatedFileName = uniqid('img_', true) . '.' . $file->extension();
+                    $filePath = 'LMS/Categories/' . $generatedFileName;
+
+                    $file->storeAs('LMS/Categories', $generatedFileName);
+
+                    if (!empty($category->image_file_tmp) && Storage::exists('LMS/Categories/' . $category->image_file_tmp)) {
+                        Storage::delete('LMS/Categories/' . $category->image_file_tmp);
+                    }
+
+                    $validatedData['image_file'] = $file->getClientOriginalName();
+                    $validatedData['image_file_tmp'] = $generatedFileName;
+                } else {
+                    $validatedData['image_file'] = $category->image_file;
+                    $validatedData['image_file_tmp'] = $category->image_file_tmp;
+                }
+
+                $this->db->table($this->table_categories)->where('id', $id)->update($validatedData);
+            } else {
+                $exists = $this->db->table($this->table_categories)
+                    ->where('category_name', $validatedData['category_name'])
+                    ->exists();
+
+                if ($exists) {
+                    return $this->response->errorResponse("Category Name already exists!");
+                }
+
+                if ($request->hasFile('image_file')) {
+                    $file = $request->file('image_file');
+
+                    if (!$file->isValid()) {
+                        return $this->response->errorResponse("Invalid file upload.");
+                    }
+
+                    $generatedFileName = uniqid('img_', true) . '.' . $file->extension();
+                    $filePath = 'LMS/Categories/' . $generatedFileName;
+
+                    $file->storeAs('LMS/Categories', $generatedFileName);
+
+                    $validatedData['image_file'] = $file->getClientOriginalName();
+                    $validatedData['image_file_tmp'] = $generatedFileName;
+                }
+
+                $id = $this->db->table($this->table_categories)->insertGetId($validatedData);
             }
 
             $this->db->commit();
-            return $this->response->buildApiResponse($request, $this->response_columns);
 
-        }
-        catch(QueryException $e){
-            // Return validation errors without redirecting
-            return $this->response->errorResponse($e);
+            return $this->response->buildApiResponse([
+                'id' => $id,
+                'category_name' => $validatedData['category_name'],
+                'category_description' => $validatedData['category_description'] ?? null,
+                'image_file' => $validatedData['image_file'] ?? null,
+                'image_file_tmp' => $validatedData['image_file_tmp'] ?? null,
+                'image_url' => $validatedData['image_file_tmp'] ? Storage::url('LMS/Categories/' . $validatedData['image_file_tmp']) : null
+            ], $this->response_columns);
+        } catch (QueryException $e) {
+            $this->db->rollback();
+            return $this->response->errorResponse($e->getMessage());
+        } catch (\Exception $e) {
+            return $this->response->errorResponse($e->getMessage());
         }
     }
 
-    public function delete(Request $request, $id){
 
-
-         //check if the id is numeric and has value
+    public function delete(Request $request, $id) {
+        //check if the id is numeric and has value
         if (empty($id) && !is_numeric($id)) {
             return $this->response->errorResponse("Invalid Request");
         }
         $request = $request->all();
 
-        if(!isset($request['id']) || empty($request['id']) || !is_numeric($request['id'])){
+        if (!isset($request['id']) || empty($request['id']) || !is_numeric($request['id'])) {
             //if id is not set in $request, empty or non numeric
             return $this->response->invalidParameterResponse();
         }
-        if($request['id'] != $id){
+        if ($request['id'] != $id) {
             //if ids doesnt match
             return $this->response->errorResponse("ID doesn't match!");
         }
-        try{
+        try {
 
 
             $this->db->beginTransaction();
 
-            if($this->db->table($this->table_categories)->where('id', $request['id'])->delete()){
+            if ($this->db->table($this->table_categories)->where('id', $request['id'])->delete()) {
                 $this->db->commit();
                 return $this->response->successResponse("Data has been deleted!");
-            } else{
+            } else {
                 $this->db->rollback();
                 return $this->response->errorResponse("Data Saved Unsuccessfully");
             }
-        }
-        catch(QueryException $e){
+        } catch (QueryException $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
     }
 
-    public function upload(Request $request, $id){
+    public function upload(Request $request, $id) {
     }
 }
