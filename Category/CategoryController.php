@@ -35,25 +35,31 @@ class CategoryController extends Controller {
 
 
     public function get(Request $params, $id = null) {
-
         try {
-
             $query_result = null;
+            $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp", "date_time_added"];
 
-            //This section is intended for fetching specific course record
             if ($id) {
-                $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp", "date_time_added"];
-                $query_result = $this->db->table($this->table_categories)->select($this->response_columns)->where('id', $id)->first();
-            }
+                $query_result = $this->db->table($this->table_categories)
+                    ->select($this->response_columns)
+                    ->where('id', $id)
+                    ->first();
 
-            // This section is intended for pagination
-            if ($params->has('offset')) {
+                if (!$query_result) {
+                    return $this->response->errorResponse("Category not found.");
+                }
+
+                // Convert result to an array to maintain consistency
+                $query_result = [$query_result];
+            } elseif ($params->has('offset')) {
                 $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp"];
-                $query_result = $this->db->table($this->table_categories)->select($this->response_columns)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
-            }
-
-            // This section is intended for table search
-            if ($params->has('search_keyword')) {
+                $query_result = $this->db->table($this->table_categories)
+                    ->select($this->response_columns)
+                    ->offset((int) trim($params->query('offset'), '"'))
+                    ->limit(1000)
+                    ->orderBy('id', 'desc')
+                    ->get();
+            } elseif ($params->has('search_keyword')) {
                 $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $query_result = $this->db->table($this->table_categories)
@@ -65,18 +71,28 @@ class CategoryController extends Controller {
                     ->get();
             }
 
-            foreach ($query_result as &$qr) {
-                $qr->image_file_base64  = base64_encode(Storage::get('LMS/Categories/' . $qr->image_file_tmp));
+            if ($query_result) {
+                foreach ($query_result as &$qr) {
+                    if (!empty($qr->image_file_tmp) && Storage::exists('LMS/Categories/' . $qr->image_file_tmp)) {
+                        $qr->image_file_base64 = base64_encode(Storage::get('LMS/Categories/' . $qr->image_file_tmp));
+                    } else {
+                        $qr->image_file_base64 = null;
+                    }
+                }
+            } else {
+                return $this->response->errorResponse("No records found.");
             }
 
             $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp", "image_file_base64", "date_time_added"];
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
-        } catch (QueryException  $e) {
-            // Return validation errors without redirecting
-            return $this->response->errorResponse($e);
+        } catch (QueryException $e) {
+            return $this->response->errorResponse($e->getMessage());
+        } catch (\Exception $e) {
+            return $this->response->errorResponse($e->getMessage());
         }
     }
+
 
     public function post(Request $request, $id = null) {
         $this->accepted_parameters = [
