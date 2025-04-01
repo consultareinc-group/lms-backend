@@ -123,7 +123,6 @@ class CategoryController extends Controller {
                     }
 
                     $generatedFileName = uniqid('img_', true) . '.' . $file->extension();
-                    $filePath = 'LMS/Categories/' . $generatedFileName;
 
                     $file->storeAs('LMS/Categories', $generatedFileName);
 
@@ -135,7 +134,7 @@ class CategoryController extends Controller {
                     $validatedData['image_file_tmp'] = $generatedFileName;
                 } else {
                     $validatedData['image_file'] = $category->image_file;
-                    $validatedData['image_file_tmp'] = $category->image_file_tmp;
+                    $validatedData['image_file_tmp'] = $category->image_file_tmp; // Avoid overwriting if not provided
                 }
 
                 $this->db->table($this->table_categories)->where('id', $id)->update($validatedData);
@@ -156,7 +155,6 @@ class CategoryController extends Controller {
                     }
 
                     $generatedFileName = uniqid('img_', true) . '.' . $file->extension();
-                    $filePath = 'LMS/Categories/' . $generatedFileName;
 
                     $file->storeAs('LMS/Categories', $generatedFileName);
 
@@ -169,14 +167,20 @@ class CategoryController extends Controller {
 
             $this->db->commit();
 
-            return $this->response->buildApiResponse([
+            $responseData = [
                 'id' => $id,
                 'category_name' => $validatedData['category_name'],
                 'category_description' => $validatedData['category_description'] ?? null,
                 'image_file' => $validatedData['image_file'] ?? null,
                 'image_file_tmp' => $validatedData['image_file_tmp'] ?? null,
-                'image_url' => $validatedData['image_file_tmp'] ? Storage::url('LMS/Categories/' . $validatedData['image_file_tmp']) : null
-            ], $this->response_columns);
+            ];
+
+            // Only include image_url if image_file_tmp is set
+            if (!empty($validatedData['image_file_tmp'])) {
+                $responseData['image_url'] = Storage::url('LMS/Categories/' . $validatedData['image_file_tmp']);
+            }
+
+            return $this->response->buildApiResponse($responseData, $this->response_columns);
         } catch (QueryException $e) {
             $this->db->rollback();
             return $this->response->errorResponse($e->getMessage());
@@ -184,6 +188,7 @@ class CategoryController extends Controller {
             return $this->response->errorResponse($e->getMessage());
         }
     }
+
 
 
     public function delete(Request $request, $id) {
