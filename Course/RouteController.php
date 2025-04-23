@@ -4,16 +4,15 @@
  *
  * replace the SystemName based on the Folder
  *
-*/
+ */
+
 namespace App\Http\Controllers\LMS\Course;
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Controller;
 
-class RouteController extends Controller
-{
-    public static function moduleRoute()
-    {
+class RouteController extends Controller {
+    public static function moduleRoute() {
 
         Route::get('/course/{id?}', [CourseController::class, 'get']);
         Route::post('/course', [CourseController::class, 'post']);
@@ -30,11 +29,6 @@ class RouteController extends Controller
         Route::put('/question/{id}', [QuestionController::class, 'put']);
         Route::delete('/question/{id}', [QuestionController::class, 'delete']);
 
-    }
-
-    public static function moduleRouteOpen()
-    {
-
         Route::get('/examinee/course/{id?}', [ApiController::class, 'getCourse']);
         Route::get('/examinee/quiz/{id?}', [ApiController::class, 'getQuiz']);
         Route::get('/examinee/quiz_by_course/{course_id}', action: [ApiController::class, 'getQuizByCourse']);
@@ -42,6 +36,5 @@ class RouteController extends Controller
         Route::get('/examinee/logs/{id}', [ApiController::class, 'getLogs']);
         Route::post('/examinee/logs', [ApiController::class, 'postLogs']);
         Route::post('/examinee/answers', [ApiController::class, 'checkAnswers']);
-
     }
 }
