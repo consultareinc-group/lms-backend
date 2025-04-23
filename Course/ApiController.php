@@ -14,20 +14,22 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\ResponseHelper;
 use Carbon\Carbon;
+use App\Helpers\UserInfoHelper;
 
 /**
  *
  * replace the ApiController based on the module name + ApiController ex. moduleNameApiController
  *
  */
-class ApiController extends Controller
-{
+class ApiController extends Controller {
 
     protected $response;
     protected $db;
-    public function __construct(Request $request)
-    {
+    protected $user_info_helper;
+
+    public function __construct(Request $request) {
         $this->response = new ResponseHelper($request);
+        $this->user_info_helper = new UserInfoHelper();
         /**
          *
          *  Rename lms based on preferred database on database.php
@@ -52,15 +54,7 @@ class ApiController extends Controller
     protected $logs_accepted_parameters = [
         "id",
         "quiz_id",
-        "first_name",
-        "last_name",
-        "middle_name",
-        "suffix",
-        "phone",
-        "company",
-        "email",
-        "status",
-        "date_time_completed"
+        "user_id",
     ];
 
     /**
@@ -77,11 +71,6 @@ class ApiController extends Controller
 
     protected $logs_required_fields = [
         "quiz_id",
-        "first_name",
-        "last_name",
-        "phone",
-        "company",
-        "email",
     ];
 
     /**
@@ -130,14 +119,7 @@ class ApiController extends Controller
     protected $logs_response_column = [
         "id",
         "quiz_id",
-        "first_name",
-        "last_name",
-        "middle_name",
-        "suffix",
-        "phone",
-        "company",
-        "email",
-        "status",
+        "user_id",
         "date_time_completed"
     ];
 
@@ -150,49 +132,47 @@ class ApiController extends Controller
      * */
     protected $table_courses = 'lms_courses';
 
+
     //Get courses
-    public function getCourse(Request $params, $id = null)
-    {
+    public function getCourse(Request $params, $id = null) {
         try {
             //This section is intended for fetching specific course record
             if ($id) {
                 $this->course_response_column = ["cr.id", "ct.category_name", "cr.course_name", "cr.status", "cr.video_link", "cr.course_description", "cr.date_time_added", "cr.date_time_updated"];
-                $query_result = $this->db->table($this->table_courses. " as cr")->select($this->course_response_column)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.id', $id)->where('cr.status',  1)->first();
+                $query_result = $this->db->table($this->table_courses . " as cr")->select($this->course_response_column)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.id', $id)->where('cr.status',  1)->first();
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
                 $this->course_response_column = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
-                $query_result = $this->db->table($this->table_courses. " as cr")->select($this->course_response_column)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.is_deleted', 0)->where('cr.status',  1)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('cr.id', 'desc')->get();
+                $query_result = $this->db->table($this->table_courses . " as cr")->select($this->course_response_column)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.is_deleted', 0)->where('cr.status',  1)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('cr.id', 'desc')->get();
             }
 
-             // This section is intended for searching published courses
-             if ($params->has('search_keyword')) {
+            // This section is intended for searching published courses
+            if ($params->has('search_keyword')) {
                 $this->course_response_column = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $category_id = $params->query('category_id');
-                $query_result = $this->db->table($this->table_courses. " as cr")
-                ->select($this->course_response_column)
-                ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
-                ->where('cr.status',  1)
-                ->where('cr.is_deleted',0)
-                ->where(function ($query) use ($category_id) {
+                $query_result = $this->db->table($this->table_courses . " as cr")
+                    ->select($this->course_response_column)
+                    ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
+                    ->where('cr.status',  1)
+                    ->where('cr.is_deleted', 0)
+                    ->where(function ($query) use ($category_id) {
 
-                    if (!empty($category_id)) {
-                        $query->where('cr.category_id', $category_id);
-                    }
+                        if (!empty($category_id)) {
+                            $query->where('cr.category_id', $category_id);
+                        }
+                    })
+                    ->where(function ($query) use ($keyword) {
 
-                })
-                ->where(function ($query) use ($keyword) {
-
-                    if (!empty($keyword)) {
-                        $query->where('cr.course_name', 'like', '%' . $keyword . '%')
-                        ->orWhere('cr.course_description', 'like', '%' . $keyword . '%');
-                    }
-
-                })
-                ->reorder('cr.id', 'desc')
-                ->get();
+                        if (!empty($keyword)) {
+                            $query->where('cr.course_name', 'like', '%' . $keyword . '%')
+                                ->orWhere('cr.course_description', 'like', '%' . $keyword . '%');
+                        }
+                    })
+                    ->reorder('cr.id', 'desc')
+                    ->get();
             }
 
             $this->response_columns = ["id", "category_name", "course_name", "status", "video_link", "course_description", "date_time_added", "date_time_updated"];
@@ -204,8 +184,7 @@ class ApiController extends Controller
     }
 
     //Get quiz
-    public function getQuiz(Request $request, $id = null)
-    {
+    public function getQuiz(Request $request, $id = null) {
         try {
             $query_result = $this->db->table("lms_quizzes")->select($this->quiz_response_column)->select($this->quiz_response_column)->get();
             if ($id) {
@@ -219,8 +198,7 @@ class ApiController extends Controller
     }
 
     //Get quiz by course_id
-    public function getQuizByCourse(Request $request, $course_id = null)
-    {
+    public function getQuizByCourse(Request $request, $course_id = null) {
         try {
             if ($course_id) {
                 $query_result = $this->db->table("lms_quizzes")->select($this->quiz_response_column)->where('course_id', $course_id)->get();
@@ -233,8 +211,7 @@ class ApiController extends Controller
     }
 
     //Get questions by quiz_id
-    public function getQuestionsByQuiz(Request $request, $quiz_id = null)
-    {
+    public function getQuestionsByQuiz(Request $request, $quiz_id = null) {
         try {
             if ($quiz_id) {
                 // get questions along with their choices
@@ -259,8 +236,7 @@ class ApiController extends Controller
     }
 
     //Get logs
-    public function getLogs(Request $request, $id = null)
-    {
+    public function getLogs(Request $request, $id = null) {
         try {
             $query_result = $this->db->table("lms_logs")->select($this->logs_response_column)->select($this->logs_response_column)->get();
             if ($id) {
@@ -278,8 +254,7 @@ class ApiController extends Controller
     }
 
     //Add user information
-    public function postLogs(Request $request)
-    {
+    public function postLogs(Request $request) {
 
         $request = $request->all();
 
@@ -310,6 +285,7 @@ class ApiController extends Controller
         try {
             $this->db->beginTransaction();
 
+            $request["user_id"] = $this->user_info_helper->getUserId();
             $request["date_time_completed"] = Carbon::now();
 
             if (isset($request["id"])) {
@@ -332,8 +308,7 @@ class ApiController extends Controller
 
 
     //Check answers
-    public function checkAnswers(Request $request)
-    {
+    public function checkAnswers(Request $request) {
         $userAnswers = $request->input('answers'); // Frontend JSON payload
         $quizId = $request->input('quiz_id');
         // extract all question_id from the user answers through array_keys function
