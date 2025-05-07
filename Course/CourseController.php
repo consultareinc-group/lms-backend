@@ -4,7 +4,8 @@
  *
  * replace the SystemName based on the Folder
  *
-*/
+ */
+
 namespace App\Http\Controllers\LMS\Course;
 
 use Illuminate\Http\Request;
@@ -17,24 +18,22 @@ use App\Helpers\ResponseHelper;
  *
  * replace the ApiController based on the module name + ApiController ex. moduleNameApiController
  *
-*/
-class CourseController extends Controller
-{
+ */
+class CourseController extends Controller {
 
     protected $response;
     protected $db;
-    public function __construct(Request $request)
-    {
+    public function __construct(Request $request) {
         $this->response = new ResponseHelper($request);
         /**
          *
          *  Rename lms based on preferred database on database.php
          *
-        */
+         */
         $this->db = DB::connection("lms");
     }
 
-     /**
+    /**
      *
      * modify accepted parameters
      *
@@ -88,22 +87,22 @@ class CourseController extends Controller
     protected $table_courses = 'lms_courses';
 
 
-    public function get(Request $params, $id = null){
+    public function get(Request $params, $id = null) {
 
-        try{
+        try {
 
             $query_result = null;
 
             //This section is intended for fetching specific course record
             if ($id) {
                 $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.status", "cr.video_link", "cr.course_description", "cr.date_time_added", "cr.date_time_updated"];
-                $query_result = $this->db->table($this->table_courses. " as cr")->select($columns)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.id',$id)->first();
+                $query_result = $this->db->table($this->table_courses . " as cr")->select($columns)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.id', $id)->first();
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
                 $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
-                $query_result = $this->db->table($this->table_courses. " as cr")->select($columns)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('cr.id', 'desc')->get();
+                $query_result = $this->db->table($this->table_courses . " as cr")->select($columns)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('cr.id', 'desc')->get();
             }
 
             // This section is intended for table search
@@ -111,22 +110,22 @@ class CourseController extends Controller
                 $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $category_id = $params->query('category_id');
-                $query_result = $this->db->table($this->table_courses. " as cr")
-                ->select($columns)
-                ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
-                ->where('cr.is_deleted', '=', 0)
-                ->where(function ($query) use ($keyword, $category_id) {
-                    if (empty($category_id)) {
-                        $query->where('cr.id', 'like', '%' . $keyword . '%')
-                          ->orWhere('cr.course_name', 'like', '%' . $keyword . '%')
-                          ->orWhere('ct.category_name', 'like', '%' . $keyword . '%')
-                          ->orWhere('cr.date_time_added', 'like', '%' . $keyword . '%');
-                    } else {
-                        $query->where('cr.course_name', 'like', '%' . $keyword . '%')
-                          ->where('ct.category_id', $category_id);
-                    }
-                })
-                ->get();
+                $query_result = $this->db->table($this->table_courses . " as cr")
+                    ->select($columns)
+                    ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
+                    ->where('cr.is_deleted', '=', 0)
+                    ->where(function ($query) use ($keyword, $category_id) {
+                        if (empty($category_id)) {
+                            $query->where('cr.id', 'like', '%' . $keyword . '%')
+                                ->orWhere('cr.course_name', 'like', '%' . $keyword . '%')
+                                ->orWhere('ct.category_name', 'like', '%' . $keyword . '%')
+                                ->orWhere('cr.date_time_added', 'like', '%' . $keyword . '%');
+                        } else {
+                            $query->where('cr.course_name', 'like', '%' . $keyword . '%')
+                                ->where('ct.category_id', $category_id);
+                        }
+                    })
+                    ->get();
             }
 
             $this->response_columns = [
@@ -144,20 +143,18 @@ class CourseController extends Controller
             ];
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
-
-        }
-        catch(QueryException  $e){
+        } catch (QueryException  $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
     }
 
-    public function post(Request $request){
+    public function post(Request $request) {
 
 
         $request = $request->all();
 
-        if(!empty($request)){
+        if (!empty($request)) {
             foreach ($request as $field => $value) {
                 if (!in_array($field, $this->accepted_parameters)) {
                     return $this->response->invalidParameterResponse();
@@ -168,14 +165,13 @@ class CourseController extends Controller
         //check if the required fields are filled and has values
         foreach ($this->required_fields as $field) {
             if (!array_key_exists($field, $request)) {
-                if(empty($request[$field])){
+                if (empty($request[$field])) {
                     return $this->response->requiredFieldMissingResponse();
                 }
-
             }
         }
 
-        try{
+        try {
 
             $this->db->beginTransaction();
 
@@ -183,22 +179,20 @@ class CourseController extends Controller
             $request['date_time_added'] = date('Y-m-d H:i:s');
             $request['id'] = $this->db->table($this->table_courses)->insertGetId($request);
 
-            if($request['id']) {
+            if ($request['id']) {
                 $this->db->commit();
                 return $this->response->buildApiResponse($request, $this->response_columns);
-            } else{
+            } else {
                 $this->db->rollback();
                 return $this->response->errorResponse("Data Saved Unsuccessfully");
             }
-        }
-        catch(QueryException $e){
+        } catch (QueryException $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
-
     }
 
-    public function put(Request $request, $id){
+    public function put(Request $request, $id) {
 
         $request = $request->all();
 
@@ -211,7 +205,7 @@ class CourseController extends Controller
             "status",
         ];
 
-        if(empty($request)){
+        if (empty($request)) {
             foreach ($request as $field => $value) {
                 if (!in_array($field, $this->accepted_parameters)) {
                     return $this->response->invalidParameterResponse();
@@ -220,7 +214,7 @@ class CourseController extends Controller
         }
 
         //check if the Ids matches
-        if($request['id'] != $id){
+        if ($request['id'] != $id) {
             return $this->response->errorResponse("Ids Dont Match");
         }
 
@@ -236,13 +230,13 @@ class CourseController extends Controller
         //check if the required fields are filled and has values
         foreach ($this->required_fields as $field) {
             if (!array_key_exists($field, $request)) {
-                if(empty($request[$field])){
+                if (empty($request[$field])) {
                     return $this->response->requiredFieldMissingResponse();
                 }
             }
         }
 
-        try{
+        try {
             $this->db->beginTransaction();
 
             // Check if the data hasn't changed.
@@ -258,63 +252,60 @@ class CourseController extends Controller
 
             $this->db->commit();
             return $this->response->buildApiResponse($request, $this->response_columns);
-
-        }
-        catch(QueryException $e){
+        } catch (QueryException $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
     }
 
-    public function delete(Request $request, $id){
+    public function delete(Request $request, $id) {
 
 
-         //check if the id is numeric and has value
+        //check if the id is numeric and has value
         if (empty($id) && !is_numeric($id)) {
             return $this->response->errorResponse("Invalid Request");
         }
         $request = $request->all();
 
-        if(!isset($request['id']) || empty($request['id']) || !is_numeric($request['id'])){
+        if (!isset($request['id']) || empty($request['id']) || !is_numeric($request['id'])) {
             //if id is not set in $request, empty or non numeric
             return $this->response->invalidParameterResponse();
         }
-        if($request['id'] != $id){
+        if ($request['id'] != $id) {
             //if ids doesnt match
             return $this->response->errorResponse("ID doesn't match!");
         }
-        try{
+        try {
 
 
             $this->db->beginTransaction();
 
-            if($this->db->table($this->table_courses)->where('id', $request['id'])->update(["is_deleted" => 1])){
+            if ($this->db->table($this->table_courses)->where('id', $request['id'])->update(["is_deleted" => 1])) {
                 $this->db->commit();
                 return $this->response->successResponse("Data has been deleted!");
-            } else{
+            } else {
                 $this->db->rollback();
                 return $this->response->errorResponse("Data Saved Unsuccessfully");
             }
-        }
-        catch(QueryException $e){
+        } catch (QueryException $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
     }
 
-    public function upload(Request $request, $id){
+    public function upload(Request $request, $id) {
 
 
-         /**
+        /**
          *
          * start with other validations here
          *
          * */
 
 
-        try{
+        try {
 
-             /**
+            /**
              *
              *
              * insert your code here
@@ -323,9 +314,7 @@ class CourseController extends Controller
              *
              *
              * */
-
-        }
-        catch(QueryException $e){
+        } catch (QueryException $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
