@@ -51,19 +51,19 @@ jobs:
           sed -i "s|'secret' => env('JWT_SECRET')|'secret' => '${{ secrets.JWT_SECRET }}'|" config/jwt.php
 
       # Update Mail configuration
-      # - name: Update Mail settings
-      #   run: |
-      #     sed -i "s|'default' => env('MAIL_MAILER', 'smtp')|'default' => 'smtp'|" config/mail.php
-      #     sed -i "s|'host' => env('MAIL_HOST', 'smtp.mailgun.org')|'host' => '${{ secrets.MAIL_HOST }}'|" config/mail.php
-      #     sed -i "s|'port' => env('MAIL_PORT', 587)|'port' => 465|" config/mail.php
-      #     sed -i "s|'encryption' => env('MAIL_ENCRYPTION', 'tls')|'encryption' => 'ssl'|" config/mail.php
-      #     sed -i "s|'username' => env('MAIL_USERNAME')|'username' => '${{ secrets.MAIL_USERNAME }}'|" config/mail.php
-      #     sed -i "s|'password' => env('MAIL_PASSWORD')|'password' => '${{ secrets.MAIL_PASSWORD }}'|" config/mail.php
-      #     sed -i "s|'local_domain' => env('MAIL_EHLO_DOMAIN')|'local_domain' => '${{ secrets.MAIL_DOMAIN }}'|" config/mail.php
-      #     sed -i "s|'path' => env('MAIL_SENDMAIL_PATH', '\/usr\/sbin\/sendmail -bs -i')|'path' => '/usr/sbin/sendmail -bs -i'|" config/mail.php
-      #     sed -i "s|'channel' => env('MAIL_LOG_CHANNEL')|'channel' => 'stack'|" config/mail.php
-      #     sed -i "s|'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com')|'address' => '${{ secrets.MAIL_USERNAME }}'|" config/mail.php
-      #     sed -i "s|'name' => env('MAIL_FROM_NAME', 'Example')|'name' => 'Vendor Match'|" config/mail.php
+      - name: Update Mail settings
+        run: |
+          sed -i "s|'default' => env('MAIL_MAILER', 'smtp')|'default' => 'smtp'|" config/mail.php
+          sed -i "s|'host' => env('MAIL_HOST', 'smtp.mailgun.org')|'host' => '${{ secrets.MAIL_HOST }}'|" config/mail.php
+          sed -i "s|'port' => env('MAIL_PORT', 587)|'port' => 465|" config/mail.php
+          sed -i "s|'encryption' => env('MAIL_ENCRYPTION', 'tls')|'encryption' => 'ssl'|" config/mail.php
+          sed -i "s|'username' => env('MAIL_USERNAME')|'username' => '${{ secrets.MAIL_USERNAME }}'|" config/mail.php
+          sed -i "s|'password' => env('MAIL_PASSWORD')|'password' => '${{ secrets.MAIL_PASSWORD }}'|" config/mail.php
+          sed -i "s|'local_domain' => env('MAIL_EHLO_DOMAIN')|'local_domain' => '${{ secrets.MAIL_DOMAIN }}'|" config/mail.php
+          sed -i "s|'path' => env('MAIL_SENDMAIL_PATH', '\/usr\/sbin\/sendmail -bs -i')|'path' => '/usr/sbin/sendmail -bs -i'|" config/mail.php
+          sed -i "s|'channel' => env('MAIL_LOG_CHANNEL')|'channel' => 'stack'|" config/mail.php
+          sed -i "s|'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com')|'address' => '${{ secrets.MAIL_USERNAME }}'|" config/mail.php
+          sed -i "s|'name' => env('MAIL_FROM_NAME', 'Example')|'name' => 'Training Ace'|" config/mail.php
 
       # Update Database connections
       - name: Update Database settings
