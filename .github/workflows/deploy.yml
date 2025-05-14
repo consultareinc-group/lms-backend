@@ -27,7 +27,7 @@ jobs:
         run: |
           git clone https://USERNAME:${{ secrets.PERSONAL_TOKEN }}@github.com/consultareinc-group/interlinkiq-backend.git
           cd interlinkiq-backend
-          git checkout base
+          git checkout lms-staging
           cd ../
           
           mkdir -p interlinkiq-backend/app/Http/Controllers/LMS
