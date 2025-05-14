@@ -53,6 +53,7 @@ jobs:
       # Update Mail configuration
       - name: Update Mail settings
         run: |
+          cd interlinkiq-backend
           sed -i "s|'default' => env('MAIL_MAILER', 'smtp')|'default' => 'smtp'|" config/mail.php
           sed -i "s|'host' => env('MAIL_HOST', 'smtp.mailgun.org')|'host' => '${{ secrets.MAIL_HOST }}'|" config/mail.php
           sed -i "s|'port' => env('MAIL_PORT', 587)|'port' => 465|" config/mail.php
