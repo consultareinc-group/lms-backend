@@ -246,7 +246,7 @@ class LogsController extends Controller {
                         ->where('id', $this->user_info_helper->getUserId())
                         ->value('role');
 
-                    if ($user_role !== 0 && $query_result[0]->user_id !== $this->user_info_helper->getUserId()) {
+                    if ($user_role != 0 && $query_result[0]->user_id != $this->user_info_helper->getUserId()) {
                         return $this->response->errorResponse('Not Authorized.');
                     }
                 }
