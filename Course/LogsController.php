@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use App\Helpers\ResponseHelper;
 use App\Helpers\UserInfoHelper;
 use Carbon\Carbon;
@@ -249,6 +250,26 @@ class LogsController extends Controller {
                     if ($user_role != 0 && $query_result[0]->user_id != $this->user_info_helper->getUserId()) {
                         return $this->response->errorResponse('Not Authorized.');
                     }
+                }
+
+                // --- Manual casting starts here ---
+
+                // Helper function to cast integers in an object
+                $castInts = function ($item) {
+                    if (!$item) return $item;
+                    $item->id = isset($item->id) ? (int) $item->id : null;
+                    $item->user_id = isset($item->user_id) ? (int) $item->user_id : null;
+                    $item->quiz_id = isset($item->quiz_id) ? (int) $item->quiz_id : null;
+                    $item->course_id = isset($item->course_id) ? (int) $item->course_id : null;
+                    return $item;
+                };
+
+                if ($query_result instanceof Collection) {
+                    $query_result = $query_result->map(function ($item) use ($castInts) {
+                        return $castInts($item);
+                    });
+                } else {
+                    $query_result = $castInts($query_result);
                 }
             }
 
