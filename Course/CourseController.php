@@ -88,28 +88,76 @@ class CourseController extends Controller {
 
 
     public function get(Request $params, $id = null) {
-
         try {
-
             $query_result = null;
+            $columns = [
+                "cr.id",
+                "ct.category_name",
+                "cr.course_name",
+                "cr.status",
+                "cr.video_link",
+                "cr.course_description",
+                "cr.date_time_added",
+                "cr.date_time_updated"
+            ];
 
-            //This section is intended for fetching specific course record
+            // Fetching specific course record
             if ($id) {
-                $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.status", "cr.video_link", "cr.course_description", "cr.date_time_added", "cr.date_time_updated"];
-                $query_result = $this->db->table($this->table_courses . " as cr")->select($columns)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.id', $id)->first();
+                $query_result = $this->db->table($this->table_courses . " as cr")
+                    ->select($columns)
+                    ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
+                    ->where('cr.id', $id)
+                    ->first();
+
+                // Manual type casting for a single course record
+                if ($query_result) {
+                    $query_result->id = (int) $query_result->id;
+                    $query_result->status = (int) $query_result->status;
+                }
             }
 
-            // This section is intended for pagination
+            // Pagination section
             if ($params->has('offset')) {
-                $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
-                $query_result = $this->db->table($this->table_courses . " as cr")->select($columns)->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")->where('cr.is_deleted', '=', 0)->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('cr.id', 'desc')->get();
+                $columns = [
+                    "cr.id",
+                    "ct.category_name",
+                    "cr.course_name",
+                    "cr.video_link",
+                    "cr.course_description",
+                    "cr.status",
+                    "cr.date_time_added"
+                ];
+
+                $query_result = $this->db->table($this->table_courses . " as cr")
+                    ->select($columns)
+                    ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
+                    ->where('cr.is_deleted', '=', 0)
+                    ->offset((int) trim($params->query('offset'), '"'))
+                    ->limit(1000)
+                    ->reorder('cr.id', 'desc')
+                    ->get()
+                    ->map(function ($course) {
+                        // Manual type casting for multiple courses
+                        $course->id = (int) $course->id;
+                        $course->status = (int) $course->status;
+                        return $course;
+                    });
             }
 
-            // This section is intended for table search
+            // Table search section
             if ($params->has('search_keyword')) {
-                $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
+                $columns = [
+                    "cr.id",
+                    "ct.category_name",
+                    "cr.course_name",
+                    "cr.video_link",
+                    "cr.course_description",
+                    "cr.status",
+                    "cr.date_time_added"
+                ];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $category_id = $params->query('category_id');
+
                 $query_result = $this->db->table($this->table_courses . " as cr")
                     ->select($columns)
                     ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
@@ -125,7 +173,13 @@ class CourseController extends Controller {
                                 ->where('ct.category_id', $category_id);
                         }
                     })
-                    ->get();
+                    ->get()
+                    ->map(function ($course) {
+                        // Manual type casting for search results
+                        $course->id = (int) $course->id;
+                        $course->status = (int) $course->status;
+                        return $course;
+                    });
             }
 
             $this->response_columns = [
@@ -143,11 +197,12 @@ class CourseController extends Controller {
             ];
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
-        } catch (QueryException  $e) {
+        } catch (QueryException $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
     }
+
 
     public function post(Request $request) {
 
