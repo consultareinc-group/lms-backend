@@ -90,78 +90,75 @@ class CourseController extends Controller {
     public function get(Request $params, $id = null) {
         try {
             $query_result = null;
-            $columns = [
-                "cr.id",
-                "ct.category_name",
-                "cr.course_name",
-                "cr.status",
-                "cr.video_link",
-                "cr.course_description",
-                "cr.date_time_added",
-                "cr.date_time_updated"
-            ];
 
-            // Fetching specific course record
+            // Columns used in different contexts
             if ($id) {
+                // Fetch single course record with join
+                $columns = [
+                    "cr.id",
+                    "ct.id as category_id",
+                    "ct.category_name",
+                    "cr.course_name",
+                    "cr.status",
+                    "cr.video_link",
+                    "cr.course_description",
+                    "cr.date_time_added",
+                    "cr.date_time_updated",
+                    "cr.is_deleted"
+                ];
                 $query_result = $this->db->table($this->table_courses . " as cr")
                     ->select($columns)
                     ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
                     ->where('cr.id', $id)
                     ->first();
 
-                // Manual type casting for a single course record
-                if ($query_result) {
-                    $query_result->id = (int) $query_result->id;
-                    $query_result->status = (int) $query_result->status;
+                if (!$query_result) {
+                    return $this->response->errorResponse("Course not found.");
                 }
-            }
 
-            // Pagination section
-            if ($params->has('offset')) {
+                // Wrap single result in array for consistent handling later
+                $query_result = [$query_result];
+            } elseif ($params->has('offset')) {
                 $columns = [
                     "cr.id",
+                    "ct.id as category_id",
                     "ct.category_name",
                     "cr.course_name",
                     "cr.video_link",
                     "cr.course_description",
                     "cr.status",
-                    "cr.date_time_added"
+                    "cr.date_time_added",
+                    "cr.date_time_updated",
+                    "cr.is_deleted"
                 ];
-
+                $offset = (int) trim($params->query('offset'), '"');
                 $query_result = $this->db->table($this->table_courses . " as cr")
                     ->select($columns)
                     ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
-                    ->where('cr.is_deleted', '=', 0)
-                    ->offset((int) trim($params->query('offset'), '"'))
+                    ->where('cr.is_deleted', 0)
+                    ->offset($offset)
                     ->limit(1000)
-                    ->reorder('cr.id', 'desc')
-                    ->get()
-                    ->map(function ($course) {
-                        // Manual type casting for multiple courses
-                        $course->id = (int) $course->id;
-                        $course->status = (int) $course->status;
-                        return $course;
-                    });
-            }
-
-            // Table search section
-            if ($params->has('search_keyword')) {
+                    ->orderBy('cr.id', 'desc')
+                    ->get();
+            } elseif ($params->has('search_keyword')) {
                 $columns = [
                     "cr.id",
+                    "ct.id as category_id",
                     "ct.category_name",
                     "cr.course_name",
                     "cr.video_link",
                     "cr.course_description",
                     "cr.status",
-                    "cr.date_time_added"
+                    "cr.date_time_added",
+                    "cr.date_time_updated",
+                    "cr.is_deleted"
                 ];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $category_id = $params->query('category_id');
-
                 $query_result = $this->db->table($this->table_courses . " as cr")
                     ->select($columns)
                     ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
-                    ->where('cr.is_deleted', '=', 0)
+                    ->where('cr.is_deleted', 0)
                     ->where(function ($query) use ($keyword, $category_id) {
                         if (empty($category_id)) {
                             $query->where('cr.id', 'like', '%' . $keyword . '%')
@@ -170,16 +167,33 @@ class CourseController extends Controller {
                                 ->orWhere('cr.date_time_added', 'like', '%' . $keyword . '%');
                         } else {
                             $query->where('cr.course_name', 'like', '%' . $keyword . '%')
-                                ->where('ct.category_id', $category_id);
+                                ->where('ct.id', $category_id);
                         }
                     })
-                    ->get()
-                    ->map(function ($course) {
-                        // Manual type casting for search results
-                        $course->id = (int) $course->id;
-                        $course->status = (int) $course->status;
-                        return $course;
-                    });
+                    ->get();
+            } else {
+                return $this->response->errorResponse("No query parameters provided.");
+            }
+
+            // Cast fields explicitly
+            if ($query_result && is_iterable($query_result)) {
+                foreach ($query_result as &$course) {
+                    $course->id = (int) $course->id;
+                    $course->category_id = isset($course->category_id) ? (int) $course->category_id : null;
+                    $course->category_name = isset($course->category_name) ? (string) $course->category_name : null;
+                    $course->course_name = isset($course->course_name) ? (string) $course->course_name : null;
+                    $course->course_description = isset($course->course_description) ? (string) $course->course_description : null;
+                    $course->video_link = isset($course->video_link) ? (string) $course->video_link : null;
+                    $course->status = isset($course->status) ? (int) $course->status : 0;
+                    $course->date_time_added = isset($course->date_time_added) ? (string) $course->date_time_added : null;
+                    $course->date_time_updated = isset($course->date_time_updated) ? (string) $course->date_time_updated : null;
+                    $course->is_deleted = isset($course->is_deleted) ? (int) $course->is_deleted : 0;
+
+                    // For number_of_quizzes, add if applicable (assuming you have a method or way to get it)
+                    // $course->number_of_quizzes = $this->countQuizzesForCourse($course->id) ?? 0;
+                }
+            } else {
+                return $this->response->errorResponse("No courses found.");
             }
 
             $this->response_columns = [
@@ -198,8 +212,9 @@ class CourseController extends Controller {
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
         } catch (QueryException $e) {
-            // Return validation errors without redirecting
-            return $this->response->errorResponse($e);
+            return $this->response->errorResponse($e->getMessage());
+        } catch (\Exception $e) {
+            return $this->response->errorResponse($e->getMessage());
         }
     }
 

@@ -66,55 +66,68 @@ class QuizController extends Controller {
         try {
             $query_result = null;
 
-            // This section is intended for fetching specific quiz record
-            if ($id) {
-                $this->response_columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
+            // Columns for fetching quiz records
+            $columns_full = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
+            $columns_search = ["id", "quiz_name", "date_time_added"];
+
+            if ($id !== null) {
+                // Fetch a specific quiz by ID
+                $this->response_columns = $columns_full;
                 $query_result = $this->db->table($this->table_quizzes)
                     ->select($this->response_columns)
-                    ->where('id', (int) $id)
+                    ->where('id', (int)$id)
                     ->first();
 
-                // Apply type casting to the fetched record
+                // Cast result fields explicitly if not null
                 if ($query_result) {
                     $query_result->id = (int) $query_result->id;
                     $query_result->course_id = (int) $query_result->course_id;
-                    $query_result->quiz_name = (string) $query_result->quiz_name;
                     $query_result->passing_percentage = (float) $query_result->passing_percentage;
+                    $query_result->quiz_name = (string) $query_result->quiz_name;
                     $query_result->date_time_added = (string) $query_result->date_time_added;
                     $query_result->date_time_updated = (string) $query_result->date_time_updated;
                 }
+
+                return $this->response->buildApiResponse($query_result, $this->response_columns);
             }
 
-            // This section is intended for pagination
             if ($params->has('offset')) {
-                $this->response_columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
+                // Pagination: quizzes by course_id with offset and limit
+                $this->response_columns = $columns_full;
+                $offset = (int) trim($params->query('offset'), '"');
+                $course_id = (int) $params->query('course_id');
+
                 $query_result = $this->db->table($this->table_quizzes)
                     ->select($this->response_columns)
-                    ->where('is_deleted', '=', 0)
-                    ->where('course_id', (int) $params->query('course_id'))
-                    ->offset((int) trim($params->query('offset'), '"'))
+                    ->where('is_deleted', 0)
+                    ->where('course_id', $course_id)
+                    ->offset($offset)
                     ->limit(1000)
-                    ->reorder('id', 'desc')
+                    ->orderBy('id', 'desc')
                     ->get();
 
-                // Apply type casting to each record in the result set
-                foreach ($query_result as $quiz) {
-                    $quiz->id = (int) $quiz->id;
-                    $quiz->course_id = (int) $quiz->course_id;
-                    $quiz->quiz_name = (string) $quiz->quiz_name;
-                    $quiz->passing_percentage = (float) $quiz->passing_percentage;
-                    $quiz->date_time_added = (string) $quiz->date_time_added;
-                    $quiz->date_time_updated = (string) $quiz->date_time_updated;
-                }
+                // Cast each record's fields explicitly
+                $query_result->transform(function ($item) {
+                    $item->id = (int) $item->id;
+                    $item->course_id = (int) $item->course_id;
+                    $item->passing_percentage = (float) $item->passing_percentage;
+                    $item->quiz_name = (string) $item->quiz_name;
+                    $item->date_time_added = (string) $item->date_time_added;
+                    $item->date_time_updated = (string) $item->date_time_updated;
+                    return $item;
+                });
+
+                return $this->response->buildApiResponse($query_result, $this->response_columns);
             }
 
-            // This section is intended for table search
             if ($params->has('search_keyword')) {
-                $this->response_columns = ["id", "quiz_name", "date_time_added"];
+                // Search quizzes by keyword
+                $this->response_columns = $columns_search;
                 $keyword = trim($params->query('search_keyword'), '"');
+
                 $query_result = $this->db->table($this->table_quizzes)
                     ->select($this->response_columns)
-                    ->where('is_deleted', '=', 0)
+                    ->where('is_deleted', 0)
                     ->where(function ($query) use ($keyword) {
                         $query->where('id', 'like', '%' . $keyword . '%')
                             ->orWhere('quiz_name', 'like', '%' . $keyword . '%')
@@ -122,18 +135,23 @@ class QuizController extends Controller {
                     })
                     ->get();
 
-                // Apply type casting to each record in the result set
-                foreach ($query_result as $quiz) {
-                    $quiz->id = (int) $quiz->id;
-                    $quiz->quiz_name = (string) $quiz->quiz_name;
-                    $quiz->date_time_added = (string) $quiz->date_time_added;
-                }
+                // Cast each record's fields explicitly
+                $query_result->transform(function ($item) {
+                    $item->id = (int) $item->id;
+                    $item->quiz_name = (string) $item->quiz_name;
+                    $item->date_time_added = (string) $item->date_time_added;
+                    return $item;
+                });
+
+                return $this->response->buildApiResponse($query_result, $this->response_columns);
             }
 
-            return $this->response->buildApiResponse($query_result, $this->response_columns);
+            // No parameters matched - return error or empty response
+            return $this->response->errorResponse("No valid query parameters provided.");
         } catch (QueryException $e) {
-            // Return validation errors without redirecting
-            return $this->response->errorResponse($e);
+            return $this->response->errorResponse($e->getMessage());
+        } catch (\Exception $e) {
+            return $this->response->errorResponse($e->getMessage());
         }
     }
 
