@@ -79,7 +79,7 @@ class LogsController extends Controller {
         try {
             $query_result = null;
 
-            if ($id === '0') {
+            if ($id === 0) {
                 return $this->response->errorResponse('Certificate not found.');
             }
 
@@ -129,7 +129,7 @@ class LogsController extends Controller {
                     ->where('id', $this->user_info_helper->getUserId())
                     ->value('role');
 
-                if ($user_role != 0 && $query_result->user_id != $this->user_info_helper->getUserId()) {
+                if ($user_role !== 0 && $query_result->user_id !== $this->user_info_helper->getUserId()) {
                     return $this->response->errorResponse('Not Authorized.');
                 }
 
@@ -259,7 +259,7 @@ class LogsController extends Controller {
                     ->where('id', $this->user_info_helper->getUserId())
                     ->value('role');
 
-                if ($user_role != 0 && $query_result[0]->user_id != $this->user_info_helper->getUserId()) {
+                if ($user_role !== 0 && $query_result[0]->user_id !== $this->user_info_helper->getUserId()) {
                     return $this->response->errorResponse('Not Authorized.');
                 }
 
