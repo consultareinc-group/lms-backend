@@ -40,6 +40,7 @@ class CategoryController extends Controller {
             $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp", "date_time_added"];
 
             if ($id) {
+                $id = (int) $id;
                 $query_result = $this->db->table($this->table_categories)
                     ->select($this->response_columns)
                     ->where('id', $id)
@@ -53,9 +54,10 @@ class CategoryController extends Controller {
                 $query_result = [$query_result];
             } elseif ($params->has('offset')) {
                 $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp"];
+                $offset = (int) trim($params->query('offset'), '"');
                 $query_result = $this->db->table($this->table_categories)
                     ->select($this->response_columns)
-                    ->offset((int) trim($params->query('offset'), '"'))
+                    ->offset($offset)
                     ->limit(1000)
                     ->orderBy('id', 'desc')
                     ->get();
@@ -73,6 +75,14 @@ class CategoryController extends Controller {
 
             if ($query_result) {
                 foreach ($query_result as &$qr) {
+                    // Cast id to int explicitly
+                    $qr->id = (int) $qr->id;
+                    $qr->category_name = (string) $qr->category_name;
+                    $qr->category_description = (string) $qr->category_description;
+                    $qr->image_file = isset($qr->image_file) ? (string) $qr->image_file : null;
+                    $qr->image_file_tmp = isset($qr->image_file_tmp) ? (string) $qr->image_file_tmp : null;
+                    $qr->date_time_added = isset($qr->date_time_added) ? (string) $qr->date_time_added : null;
+
                     if (!empty($qr->image_file_tmp) && Storage::exists('LMS/Categories/' . $qr->image_file_tmp)) {
                         $qr->image_file_base64 = base64_encode(Storage::get('LMS/Categories/' . $qr->image_file_tmp));
                     } else {
@@ -92,6 +102,7 @@ class CategoryController extends Controller {
             return $this->response->errorResponse($e->getMessage());
         }
     }
+
 
 
     public function post(Request $request, $id = null) {
