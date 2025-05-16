@@ -40,7 +40,6 @@ class CategoryController extends Controller {
             $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp", "date_time_added"];
 
             if ($id) {
-                $id = (int) $id;
                 $query_result = $this->db->table($this->table_categories)
                     ->select($this->response_columns)
                     ->where('id', $id)
@@ -50,17 +49,35 @@ class CategoryController extends Controller {
                     return $this->response->errorResponse("Category not found.");
                 }
 
+                // Manual type casting for single result
+                $query_result = (object)[
+                    'id' => (int)$query_result->id,
+                    'category_name' => (string)$query_result->category_name,
+                    'category_description' => (string)$query_result->category_description,
+                    'image_file' => (string)$query_result->image_file,
+                    'image_file_tmp' => (string)$query_result->image_file_tmp,
+                    'date_time_added' => (string)$query_result->date_time_added,
+                ];
+
                 // Convert result to an array to maintain consistency
                 $query_result = [$query_result];
             } elseif ($params->has('offset')) {
                 $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp"];
-                $offset = (int) trim($params->query('offset'), '"');
                 $query_result = $this->db->table($this->table_categories)
                     ->select($this->response_columns)
-                    ->offset($offset)
+                    ->offset((int) trim($params->query('offset'), '"'))
                     ->limit(1000)
                     ->orderBy('id', 'desc')
                     ->get();
+
+                // Manual type casting for collection
+                foreach ($query_result as &$qr) {
+                    $qr->id = (int)$qr->id;
+                    $qr->category_name = (string)$qr->category_name;
+                    $qr->category_description = (string)$qr->category_description;
+                    $qr->image_file = (string)$qr->image_file;
+                    $qr->image_file_tmp = (string)$qr->image_file_tmp;
+                }
             } elseif ($params->has('search_keyword')) {
                 $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp"];
                 $keyword = trim($params->query('search_keyword'), '"');
@@ -71,38 +88,24 @@ class CategoryController extends Controller {
                             ->orWhere('category_description', 'like', '%' . $keyword . '%');
                     })
                     ->get();
+
+                // Manual type casting for collection
+                foreach ($query_result as &$qr) {
+                    $qr->id = (int)$qr->id;
+                    $qr->category_name = (string)$qr->category_name;
+                    $qr->category_description = (string)$qr->category_description;
+                    $qr->image_file = (string)$qr->image_file;
+                    $qr->image_file_tmp = (string)$qr->image_file_tmp;
+                }
             }
 
             if ($query_result) {
-                // Helper function to cast and normalize each record
-                $castRecord = function ($qr) {
-                    $qr->id = isset($qr->id) ? (int) $qr->id : null;
-                    $qr->category_name = isset($qr->category_name) ? (string) $qr->category_name : '';
-                    $qr->category_description = isset($qr->category_description) ? (string) $qr->category_description : '';
-                    $qr->image_file = isset($qr->image_file) ? (string) $qr->image_file : null;
-                    $qr->image_file_tmp = isset($qr->image_file_tmp) ? (string) $qr->image_file_tmp : null;
-                    $qr->date_time_added = isset($qr->date_time_added) ? (string) $qr->date_time_added : null;
-
+                foreach ($query_result as &$qr) {
                     if (!empty($qr->image_file_tmp) && Storage::exists('LMS/Categories/' . $qr->image_file_tmp)) {
                         $qr->image_file_base64 = base64_encode(Storage::get('LMS/Categories/' . $qr->image_file_tmp));
                     } else {
                         $qr->image_file_base64 = null;
                     }
-                    return $qr;
-                };
-
-                // Apply casting for Collection or array of results
-                if ($query_result instanceof \Illuminate\Support\Collection) {
-                    $query_result = $query_result->map(function ($item) use ($castRecord) {
-                        return $castRecord($item);
-                    });
-                } elseif (is_array($query_result)) {
-                    foreach ($query_result as &$qr) {
-                        $qr = $castRecord($qr);
-                    }
-                } else {
-                    // Single object result (unlikely here since you converted to array)
-                    $query_result = $castRecord($query_result);
                 }
             } else {
                 return $this->response->errorResponse("No records found.");
@@ -117,7 +120,6 @@ class CategoryController extends Controller {
             return $this->response->errorResponse($e->getMessage());
         }
     }
-
 
 
 
