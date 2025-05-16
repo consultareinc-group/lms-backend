@@ -72,12 +72,34 @@ class QuizController extends Controller {
             if ($id) {
                 $this->response_columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
                 $query_result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('id', $id)->first();
+
+                if ($query_result) {
+                    $query_result = (array) $query_result;
+                    $query_result['id'] = (int) $query_result['id'];
+                    $query_result['course_id'] = (int) $query_result['course_id'];
+                    $query_result['passing_percentage'] = (float) $query_result['passing_percentage'];
+                }
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
                 $this->response_columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('is_deleted', '=', 0)->where('course_id', $params->query('course_id'))->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
+                $query_result = $this->db->table($this->table_quizzes)
+                    ->select($this->response_columns)
+                    ->where('is_deleted', '=', 0)
+                    ->where('course_id', $params->query('course_id'))
+                    ->offset(trim($params->query('offset'), '"'))
+                    ->limit(1000)
+                    ->reorder('id', 'desc')
+                    ->get();
+
+                $query_result = $query_result->map(function ($item) {
+                    $item = (array) $item;
+                    $item['id'] = (int) $item['id'];
+                    $item['course_id'] = (int) $item['course_id'];
+                    $item['passing_percentage'] = (float) $item['passing_percentage'];
+                    return $item;
+                });
             }
 
             // This section is intended for table search
@@ -93,6 +115,12 @@ class QuizController extends Controller {
                             ->orWhere('date_time_added', 'like', '%' . $keyword . '%');
                     })
                     ->get();
+
+                $query_result = $query_result->map(function ($item) {
+                    $item = (array) $item;
+                    $item['id'] = (int) $item['id'];
+                    return $item;
+                });
             }
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
