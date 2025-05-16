@@ -63,51 +63,28 @@ class QuizController extends Controller {
 
 
     public function get(Request $params, $id = null) {
+
         try {
+
             $query_result = null;
 
-            // This section is intended for fetching specific quiz record
+            //This section is intended for fetching specific quiz record
             if ($id) {
                 $this->response_columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
-                $result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('id', $id)->first();
-
-                if ($result) {
-                    // Manual casting
-                    $result->id = (int) $result->id;
-                    $result->course_id = (int) $result->course_id;
-                    $result->passing_percentage = (int) $result->passing_percentage;
-                }
-                $query_result = $result;
+                $query_result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('id', $id)->first();
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
                 $this->response_columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
-                $results = $this->db->table($this->table_quizzes)
-                    ->select($this->response_columns)
-                    ->where('is_deleted', '=', 0)
-                    ->where('course_id', $params->query('course_id'))
-                    ->offset(trim($params->query('offset'), '"'))
-                    ->limit(1000)
-                    ->reorder('id', 'desc')
-                    ->get();
-
-                // Manual casting for each record
-                $results = $results->map(function ($item) {
-                    $item->id = (int) $item->id;
-                    $item->course_id = (int) $item->course_id;
-                    $item->passing_percentage = (int) $item->passing_percentage;
-                    return $item;
-                });
-
-                $query_result = $results;
+                $query_result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('is_deleted', '=', 0)->where('course_id', $params->query('course_id'))->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
             }
 
             // This section is intended for table search
             if ($params->has('search_keyword')) {
                 $this->response_columns = ["id", "quiz_name", "date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
-                $results = $this->db->table($this->table_quizzes)
+                $query_result = $this->db->table($this->table_quizzes)
                     ->select($this->response_columns)
                     ->where('is_deleted', '=', 0)
                     ->where(function ($query) use ($keyword) {
@@ -116,23 +93,14 @@ class QuizController extends Controller {
                             ->orWhere('date_time_added', 'like', '%' . $keyword . '%');
                     })
                     ->get();
-
-                // Manual casting for each record (id only, as course_id and passing_percentage not selected here)
-                $results = $results->map(function ($item) {
-                    $item->id = (int) $item->id;
-                    return $item;
-                });
-
-                $query_result = $results;
             }
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
-        } catch (QueryException $e) {
+        } catch (QueryException  $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
     }
-
 
     public function post(Request $request) {
 
