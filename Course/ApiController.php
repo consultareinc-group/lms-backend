@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\DB;
 use App\Helpers\ResponseHelper;
 use Carbon\Carbon;
 use App\Helpers\UserInfoHelper;
-use Illuminate\Support\Collection;
 
 /**
  *
@@ -139,75 +138,52 @@ class ApiController extends Controller {
         try {
             $query_result = null;
 
-            // Fetch specific course record by ID
+            // This section is intended for fetching specific course record
             if ($id) {
-                $this->course_response_column = [
-                    "cr.id",
-                    "ct.category_name",
-                    "cr.course_name",
-                    "cr.status",
-                    "cr.video_link",
-                    "cr.course_description",
-                    "cr.date_time_added",
-                    "cr.date_time_updated"
-                ];
-
-                $query_result = $this->db->table($this->table_courses . " as cr")
+                $this->course_response_column = ["cr.id", "ct.category_name", "cr.course_name", "cr.status", "cr.video_link", "cr.course_description", "cr.date_time_added", "cr.date_time_updated"];
+                $result = $this->db->table($this->table_courses . " as cr")
                     ->select($this->course_response_column)
                     ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
                     ->where('cr.id', $id)
                     ->where('cr.status', 1)
                     ->first();
 
-                if (!$query_result) {
-                    return $this->response->errorResponse("Course not found.");
+                if ($result) {
+                    $result->id = (int) $result->id;
+                    $result->status = (int) $result->status;
                 }
-
-                // Wrap single record in array for consistent processing
-                $query_result = [$query_result];
+                $query_result = $result;
             }
 
-            // Pagination
+            // This section is intended for pagination
             if ($params->has('offset')) {
-                $this->course_response_column = [
-                    "cr.id",
-                    "ct.category_name",
-                    "cr.course_name",
-                    "cr.video_link",
-                    "cr.course_description",
-                    "cr.status",
-                    "cr.date_time_added"
-                ];
-
-                $offset = (int) trim($params->query('offset'), '"');
-
-                $query_result = $this->db->table($this->table_courses . " as cr")
+                $this->course_response_column = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
+                $results = $this->db->table($this->table_courses . " as cr")
                     ->select($this->course_response_column)
                     ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
                     ->where('cr.is_deleted', 0)
                     ->where('cr.status', 1)
-                    ->offset($offset)
+                    ->offset(trim($params->query('offset'), '"'))
                     ->limit(1000)
                     ->reorder('cr.id', 'desc')
                     ->get();
+
+                // Cast needed fields on each item
+                $results = $results->map(function ($item) {
+                    $item->id = (int) $item->id;
+                    $item->status = (int) $item->status;
+                    return $item;
+                });
+
+                $query_result = $results;
             }
 
-            // Search published courses
+            // This section is intended for searching published courses
             if ($params->has('search_keyword')) {
-                $this->course_response_column = [
-                    "cr.id",
-                    "ct.category_name",
-                    "cr.course_name",
-                    "cr.video_link",
-                    "cr.course_description",
-                    "cr.status",
-                    "cr.date_time_added"
-                ];
-
+                $this->course_response_column = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $category_id = $params->query('category_id');
-
-                $query_result = $this->db->table($this->table_courses . " as cr")
+                $results = $this->db->table($this->table_courses . " as cr")
                     ->select($this->course_response_column)
                     ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
                     ->where('cr.status', 1)
@@ -225,54 +201,21 @@ class ApiController extends Controller {
                     })
                     ->reorder('cr.id', 'desc')
                     ->get();
-            }
 
-            // Define which columns will be returned
-            $this->response_columns = [
-                "id",
-                "category_name",
-                "course_name",
-                "status",
-                "video_link",
-                "course_description",
-                "date_time_added",
-                "date_time_updated"
-            ];
-
-            if (!$query_result) {
-                return $this->response->errorResponse("No courses found.");
-            }
-
-            // Helper function to cast each course record properly
-            $castCourseRecord = function ($cr) {
-                $cr->id = isset($cr->id) ? (int) $cr->id : null;
-                $cr->category_name = isset($cr->category_name) ? (string) $cr->category_name : '';
-                $cr->course_name = isset($cr->course_name) ? (string) $cr->course_name : '';
-                $cr->status = isset($cr->status) ? (int) $cr->status : 0;
-                $cr->video_link = isset($cr->video_link) ? (string) $cr->video_link : null;
-                $cr->course_description = isset($cr->course_description) ? (string) $cr->course_description : '';
-                $cr->date_time_added = isset($cr->date_time_added) ? (string) $cr->date_time_added : null;
-                $cr->date_time_updated = isset($cr->date_time_updated) ? (string) $cr->date_time_updated : null;
-                return $cr;
-            };
-
-            // Cast the results depending on type
-            if ($query_result instanceof \Illuminate\Support\Collection) {
-                $query_result = $query_result->map(function ($item) use ($castCourseRecord) {
-                    return $castCourseRecord($item);
+                // Cast needed fields on each item
+                $results = $results->map(function ($item) {
+                    $item->id = (int) $item->id;
+                    $item->status = (int) $item->status;
+                    return $item;
                 });
-            } elseif (is_array($query_result)) {
-                foreach ($query_result as &$cr) {
-                    $cr = $castCourseRecord($cr);
-                }
-            } else {
-                $query_result = $castCourseRecord($query_result);
+
+                $query_result = $results;
             }
+
+            $this->response_columns = ["id", "category_name", "course_name", "status", "video_link", "course_description", "date_time_added", "date_time_updated"];
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
         } catch (QueryException $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -281,68 +224,31 @@ class ApiController extends Controller {
     //Get quiz
     public function getQuiz(Request $request, $id = null) {
         try {
-            $query_result = null;
-
-            // Define the columns to select if not already defined
-            // You may want to set $this->quiz_response_column somewhere else in your class.
-            // For this example, I'll assume it's already set.
-
             if ($id) {
-                $query_result = $this->db->table("lms_quizzes")
+                $quiz = $this->db->table("lms_quizzes")
                     ->select($this->quiz_response_column)
                     ->where('id', $id)
                     ->first();
 
-                if (!$query_result) {
-                    return $this->response->errorResponse("Quiz not found.");
+                if ($quiz) {
+                    $quiz->id = (int) $quiz->id;
+                    $quiz->passing_percentage = (int) $quiz->passing_percentage;
                 }
 
-                // Wrap in array for uniform processing
-                $query_result = [$query_result];
+                return $this->response->buildApiResponse($quiz, $this->quiz_response_column);
             } else {
-                $query_result = $this->db->table("lms_quizzes")
+                $quizzes = $this->db->table("lms_quizzes")
                     ->select($this->quiz_response_column)
-                    ->get();
+                    ->get()
+                    ->map(function ($quiz) {
+                        $quiz->id = (int) $quiz->id;
+                        $quiz->passing_percentage = (int) $quiz->passing_percentage;
+                        return $quiz;
+                    });
+
+                return $this->response->buildApiResponse($quizzes, $this->quiz_response_column);
             }
-
-            // Helper function to cast quiz record
-            $castQuizRecord = function ($quiz) {
-                foreach ($this->quiz_response_column as $col) {
-                    // Strip table prefix if exists (e.g. "lms_quizzes.id" to "id")
-                    $field = (strpos($col, '.') !== false) ? explode('.', $col)[1] : $col;
-
-                    if (isset($quiz->$field)) {
-                        // Example casting rules based on common types:
-                        if (stripos($field, 'id') !== false || $field === 'status' || $field === 'score') {
-                            $quiz->$field = (int) $quiz->$field;
-                        } else {
-                            $quiz->$field = (string) $quiz->$field;
-                        }
-                    } else {
-                        // If field is missing, set null or default string
-                        $quiz->$field = null;
-                    }
-                }
-                return $quiz;
-            };
-
-            // Cast all records
-            if ($query_result instanceof Collection) {
-                $query_result = $query_result->map(function ($item) use ($castQuizRecord) {
-                    return $castQuizRecord($item);
-                });
-            } elseif (is_array($query_result)) {
-                foreach ($query_result as &$quiz) {
-                    $quiz = $castQuizRecord($quiz);
-                }
-            } else {
-                $query_result = $castQuizRecord($query_result);
-            }
-
-            return $this->response->buildApiResponse($query_result, $this->quiz_response_column);
         } catch (QueryException $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -351,43 +257,22 @@ class ApiController extends Controller {
     //Get quiz by course_id
     public function getQuizByCourse(Request $request, $course_id = null) {
         try {
-            if (!$course_id) {
-                return $this->response->errorResponse("Course ID is required.");
+            $query_result = collect();  // default empty collection if no course_id
+
+            if ($course_id) {
+                $query_result = $this->db->table("lms_quizzes")
+                    ->select($this->quiz_response_column)
+                    ->where('course_id', $course_id)
+                    ->get()
+                    ->map(function ($quiz) {
+                        $quiz->id = (int) $quiz->id;
+                        $quiz->passing_percentage = (int) $quiz->passing_percentage;
+                        return $quiz;
+                    });
             }
 
-            $query_result = $this->db->table("lms_quizzes")
-                ->select($this->quiz_response_column)
-                ->where('course_id', $course_id)
-                ->get();
-
-            // Helper function to cast quiz records
-            $castQuizRecord = function ($quiz) {
-                foreach ($this->quiz_response_column as $col) {
-                    // Remove table prefix if exists
-                    $field = (strpos($col, '.') !== false) ? explode('.', $col)[1] : $col;
-
-                    if (isset($quiz->$field)) {
-                        if (stripos($field, 'id') !== false || $field === 'status' || $field === 'score') {
-                            $quiz->$field = (int) $quiz->$field;
-                        } else {
-                            $quiz->$field = (string) $quiz->$field;
-                        }
-                    } else {
-                        $quiz->$field = null;
-                    }
-                }
-                return $quiz;
-            };
-
-            // Cast each quiz record
-            $query_result = $query_result->map(function ($item) use ($castQuizRecord) {
-                return $castQuizRecord($item);
-            });
-
-            return $this->response->buildApiResponse($query_result, $this->quiz_response_column);
+            return $this->response->buildApiResponse($query_result, response_column: $this->quiz_response_column);
         } catch (QueryException $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -396,55 +281,36 @@ class ApiController extends Controller {
     //Get questions by quiz_id
     public function getQuestionsByQuiz(Request $request, $quiz_id = null) {
         try {
-            if (!$quiz_id) {
-                return response()->json(['error' => 'Quiz ID is required.'], 400);
+            $query_result = collect(); // default empty collection if no quiz_id
+
+            if ($quiz_id) {
+                // get questions along with their choices
+                $query_result = $this->db->table("lms_questions as q")
+                    ->select('q.id as question_id', 'q.question_text', 'q.date_time_added', 'q.date_time_updated', 'q.marks', 'q.is_deleted')
+                    ->where('q.quiz_id', $quiz_id)
+                    ->get()
+                    ->map(function ($question) {
+                        // Cast question fields manually
+                        $question->question_id = (int) $question->question_id;
+                        $question->marks = (int) $question->marks;
+                        $question->is_deleted = (int) $question->is_deleted;
+
+                        // Add choices for each question with type casting
+                        $question->choices = $this->db->table("lms_choices")
+                            ->select($this->choice_response_column)
+                            ->where('question_id', $question->question_id)
+                            ->get()
+                            ->map(function ($choice) {
+                                $choice->is_correct = (int) $choice->is_correct;
+                                return $choice;
+                            });
+
+                        return $question;
+                    });
             }
-
-            // Fetch questions with selected columns
-            $query_result = $this->db->table("lms_questions as q")
-                ->select('q.id as question_id', 'q.question_text', 'q.date_time_added', 'q.date_time_updated', 'q.marks', 'q.is_deleted')
-                ->where('q.quiz_id', $quiz_id)
-                ->get()
-                ->map(function ($question) {
-                    // Cast question fields explicitly
-                    $question->question_id = (int) $question->question_id;
-                    $question->question_text = (string) $question->question_text;
-                    $question->date_time_added = isset($question->date_time_added) ? (string) $question->date_time_added : null;
-                    $question->date_time_updated = isset($question->date_time_updated) ? (string) $question->date_time_updated : null;
-                    $question->marks = isset($question->marks) ? (int) $question->marks : null;
-                    $question->is_deleted = isset($question->is_deleted) ? (int) $question->is_deleted : 0;
-
-                    // Add choices with casting
-                    $choices = $this->db->table("lms_choices")
-                        ->select($this->choice_response_column)
-                        ->where('question_id', $question->question_id)
-                        ->get()
-                        ->map(function ($choice) {
-                            foreach ($this->choice_response_column as $col) {
-                                $field = (strpos($col, '.') !== false) ? explode('.', $col)[1] : $col;
-
-                                if (isset($choice->$field)) {
-                                    if (stripos($field, 'id') !== false || $field === 'is_correct') {
-                                        $choice->$field = (int) $choice->$field;
-                                    } else {
-                                        $choice->$field = (string) $choice->$field;
-                                    }
-                                } else {
-                                    $choice->$field = null;
-                                }
-                            }
-                            return $choice;
-                        });
-
-                    $question->choices = $choices;
-
-                    return $question;
-                });
 
             return response()->json($query_result, 200);
         } catch (QueryException $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
