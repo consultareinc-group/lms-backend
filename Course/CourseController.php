@@ -95,7 +95,7 @@ class CourseController extends Controller {
 
             //This section is intended for fetching specific course record
             if ($id) {
-                $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.status", "cr.video_link", "cr.course_description", "cr.date_time_added", "cr.date_time_updated"];
+                $columns = ["cr.id", "cr.category_id", "ct.category_name", "cr.course_name", "cr.status", "cr.video_link", "cr.course_description", "cr.date_time_added", "cr.date_time_updated", "cr.is_deleted"];
                 $query_result = $this->db->table($this->table_courses . " as cr")
                     ->select($columns)
                     ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
@@ -105,6 +105,7 @@ class CourseController extends Controller {
                 // Manual casting for single record
                 if ($query_result) {
                     $query_result->id = isset($query_result->id) ? (int) $query_result->id : null;
+                    $query_result->category_id = isset($query_result->category_id) ? (int) $query_result->category_id : null;
                     $query_result->status = isset($query_result->status) ? (int) $query_result->status : null;
                     $query_result->is_deleted = isset($query_result->is_deleted) ? (int) $query_result->is_deleted : null;
                 }
@@ -112,7 +113,7 @@ class CourseController extends Controller {
 
             // This section is intended for pagination
             if ($params->has('offset')) {
-                $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added", "cr.is_deleted"];
+                $columns = ["cr.id", "cr.category_id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added", "cr.is_deleted"];
                 $query_result = $this->db->table($this->table_courses . " as cr")
                     ->select($columns)
                     ->leftJoin("lms_categories as ct", "ct.id", "=", "cr.category_id")
@@ -125,6 +126,7 @@ class CourseController extends Controller {
                 // Manual casting for collection
                 $query_result = $query_result->map(function ($course) {
                     $course->id = isset($course->id) ? (int) $course->id : null;
+                    $course->category_id = isset($course->category_id) ? (int) $course->category_id : null;
                     $course->status = isset($course->status) ? (int) $course->status : null;
                     $course->is_deleted = isset($course->is_deleted) ? (int) $course->is_deleted : null;
                     return $course;
@@ -133,7 +135,7 @@ class CourseController extends Controller {
 
             // This section is intended for table search
             if ($params->has('search_keyword')) {
-                $columns = ["cr.id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added", "cr.is_deleted"];
+                $columns = ["cr.id", "cr.category_id", "ct.category_name", "cr.course_name", "cr.video_link", "cr.course_description", "cr.status", "cr.date_time_added", "cr.is_deleted"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $category_id = $params->query('category_id');
                 $query_result = $this->db->table($this->table_courses . " as cr")
@@ -156,6 +158,7 @@ class CourseController extends Controller {
                 // Manual casting for collection
                 $query_result = $query_result->map(function ($course) {
                     $course->id = isset($course->id) ? (int) $course->id : null;
+                    $course->category_id = isset($course->category_id) ? (int) $course->category_id : null;
                     $course->status = isset($course->status) ? (int) $course->status : null;
                     $course->is_deleted = isset($course->is_deleted) ? (int) $course->is_deleted : null;
                     return $course;
