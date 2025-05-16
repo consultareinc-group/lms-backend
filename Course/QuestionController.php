@@ -97,7 +97,7 @@ class QuestionController extends Controller {
                             'id' => isset($row->choice_id) ? (int)$row->choice_id : null,
                             'choice_text' => (string)$row->choice_text,
                             'explanation' => isset($row->explanation) ? (string)$row->explanation : null,
-                            'is_correct' => (bool)$row->is_correct
+                            'is_correct' => isset($row->is_correct) ? (int)$row->is_correct : 0
                         ];
                     }
                 }
@@ -137,7 +137,7 @@ class QuestionController extends Controller {
                             'id' => isset($row->choice_id) ? (int)$row->choice_id : null,
                             'choice_text' => (string)$row->choice_text,
                             'explanation' => isset($row->explanation) ? (string)$row->explanation : null,
-                            'is_correct' => (bool)$row->is_correct
+                            'is_correct' => isset($row->is_correct) ? (int)$row->is_correct : 0
                         ];
                     }
                 }
@@ -182,7 +182,7 @@ class QuestionController extends Controller {
                             'id' => isset($row->choice_id) ? (int)$row->choice_id : null,
                             'choice_text' => (string)$row->choice_text,
                             'explanation' => isset($row->explanation) ? (string)$row->explanation : null,
-                            'is_correct' => (bool)$row->is_correct
+                            'is_correct' => isset($row->is_correct) ? (int)$row->is_correct : 0
                         ];
                     }
                 }
