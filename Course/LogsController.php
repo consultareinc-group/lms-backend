@@ -264,7 +264,7 @@ class LogsController extends Controller {
                     return $item;
                 };
 
-                if ($query_result instanceof Collection) {
+                if ($query_result instanceof \Illuminate\Support\Collection) {
                     $query_result = $query_result->map(function ($item) use ($castInts) {
                         return $castInts($item);
                     });
@@ -294,6 +294,7 @@ class LogsController extends Controller {
             return $this->response->errorResponse($e);
         }
     }
+
 
     public function post(Request $request) {
         $this->accepted_parameters = [

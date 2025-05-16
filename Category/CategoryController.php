@@ -74,11 +74,11 @@ class CategoryController extends Controller {
             }
 
             if ($query_result) {
-                foreach ($query_result as &$qr) {
-                    // Cast id to int explicitly
-                    $qr->id = (int) $qr->id;
-                    $qr->category_name = (string) $qr->category_name;
-                    $qr->category_description = (string) $qr->category_description;
+                // Helper function to cast and normalize each record
+                $castRecord = function ($qr) {
+                    $qr->id = isset($qr->id) ? (int) $qr->id : null;
+                    $qr->category_name = isset($qr->category_name) ? (string) $qr->category_name : '';
+                    $qr->category_description = isset($qr->category_description) ? (string) $qr->category_description : '';
                     $qr->image_file = isset($qr->image_file) ? (string) $qr->image_file : null;
                     $qr->image_file_tmp = isset($qr->image_file_tmp) ? (string) $qr->image_file_tmp : null;
                     $qr->date_time_added = isset($qr->date_time_added) ? (string) $qr->date_time_added : null;
@@ -88,6 +88,21 @@ class CategoryController extends Controller {
                     } else {
                         $qr->image_file_base64 = null;
                     }
+                    return $qr;
+                };
+
+                // Apply casting for Collection or array of results
+                if ($query_result instanceof \Illuminate\Support\Collection) {
+                    $query_result = $query_result->map(function ($item) use ($castRecord) {
+                        return $castRecord($item);
+                    });
+                } elseif (is_array($query_result)) {
+                    foreach ($query_result as &$qr) {
+                        $qr = $castRecord($qr);
+                    }
+                } else {
+                    // Single object result (unlikely here since you converted to array)
+                    $query_result = $castRecord($query_result);
                 }
             } else {
                 return $this->response->errorResponse("No records found.");
@@ -102,6 +117,7 @@ class CategoryController extends Controller {
             return $this->response->errorResponse($e->getMessage());
         }
     }
+
 
 
 
