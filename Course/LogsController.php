@@ -76,14 +76,22 @@ class LogsController extends Controller {
 
 
     public function get(Request $params, $id = null) {
-
         try {
-
             $query_result = null;
 
             if ($id === '0') {
                 return $this->response->errorResponse('Certificate not found.');
             }
+
+            // Helper function to cast integers in an object
+            $castInts = function ($item) {
+                if (!$item) return $item;
+                $item->id = isset($item->id) ? (int) $item->id : null;
+                $item->user_id = isset($item->user_id) ? (int) $item->user_id : null;
+                $item->quiz_id = isset($item->quiz_id) ? (int) $item->quiz_id : null;
+                $item->course_id = isset($item->course_id) ? (int) $item->course_id : null;
+                return $item;
+            };
 
             // get logs by id
             if ($id) {
@@ -113,22 +121,20 @@ class LogsController extends Controller {
                     ->where("{$this->table_logs}.id", $id)
                     ->first();
 
-
-                // if id is 0, log not found
                 if (!$query_result || $query_result->id === 0) {
                     return $this->response->errorResponse("Certificate not found.");
                 }
 
-                // only allow user to see their own data unless they are an admin
-                if ($query_result) {
-                    $user_role = $this->accounts->table($this->table_user_information)
-                        ->where('id', $this->user_info_helper->getUserId())
-                        ->value('role');
+                $user_role = $this->accounts->table($this->table_user_information)
+                    ->where('id', $this->user_info_helper->getUserId())
+                    ->value('role');
 
-                    if ($user_role != 0 && $query_result->user_id != $this->user_info_helper->getUserId()) {
-                        return $this->response->errorResponse('Not Authorized.');
-                    }
+                if ($user_role != 0 && $query_result->user_id != $this->user_info_helper->getUserId()) {
+                    return $this->response->errorResponse('Not Authorized.');
                 }
+
+                // Cast the single object result
+                $query_result = $castInts($query_result);
             }
 
             // This section is intended for pagination
@@ -160,6 +166,11 @@ class LogsController extends Controller {
                     ->limit(1000)
                     ->orderBy("{$this->table_logs}.id", 'desc')
                     ->get();
+
+                // Cast collection
+                $query_result = $query_result->map(function ($item) use ($castInts) {
+                    return $castInts($item);
+                });
             }
 
             // This section is intended for table search
@@ -199,6 +210,11 @@ class LogsController extends Controller {
                     })
                     ->orderBy("{$this->table_logs}.id", 'desc')
                     ->get();
+
+                // Cast collection
+                $query_result = $query_result->map(function ($item) use ($castInts) {
+                    return $castInts($item);
+                });
             }
 
             // if params has user_id
@@ -231,46 +247,26 @@ class LogsController extends Controller {
                     ->orderBy("{$this->table_logs}.id", 'desc')
                     ->get();
 
-                // if user has no certificates
                 if (!$query_result) {
                     return $this->response->errorResponse('No logs found.');
                 }
 
-                // if user_id is 0 do not allow
                 if ($user_id == 0) {
                     return $this->response->errorResponse('User not found.');
                 }
 
-                // check if user is an admin
-                if ($query_result) {
-                    $user_role = $this->accounts->table($this->table_user_information)
-                        ->where('id', $this->user_info_helper->getUserId())
-                        ->value('role');
+                $user_role = $this->accounts->table($this->table_user_information)
+                    ->where('id', $this->user_info_helper->getUserId())
+                    ->value('role');
 
-                    if ($user_role != 0 && $query_result[0]->user_id != $this->user_info_helper->getUserId()) {
-                        return $this->response->errorResponse('Not Authorized.');
-                    }
+                if ($user_role != 0 && $query_result[0]->user_id != $this->user_info_helper->getUserId()) {
+                    return $this->response->errorResponse('Not Authorized.');
                 }
 
-                // --- Manual casting starts here ---
-
-                // Helper function to cast integers in an object
-                $castInts = function ($item) {
-                    if (!$item) return $item;
-                    $item->id = isset($item->id) ? (int) $item->id : null;
-                    $item->user_id = isset($item->user_id) ? (int) $item->user_id : null;
-                    $item->quiz_id = isset($item->quiz_id) ? (int) $item->quiz_id : null;
-                    $item->course_id = isset($item->course_id) ? (int) $item->course_id : null;
-                    return $item;
-                };
-
-                if ($query_result instanceof \Illuminate\Support\Collection) {
-                    $query_result = $query_result->map(function ($item) use ($castInts) {
-                        return $castInts($item);
-                    });
-                } else {
-                    $query_result = $castInts($query_result);
-                }
+                // Cast collection
+                $query_result = $query_result->map(function ($item) use ($castInts) {
+                    return $castInts($item);
+                });
             }
 
             $this->response_columns = [
@@ -289,11 +285,11 @@ class LogsController extends Controller {
             ];
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
-        } catch (QueryException  $e) {
-            // Return validation errors without redirecting
+        } catch (QueryException $e) {
             return $this->response->errorResponse($e);
         }
     }
+
 
 
     public function post(Request $request) {
@@ -351,9 +347,27 @@ class LogsController extends Controller {
             }
             $id = $this->lms->table("lms_logs")->insertGetId($request);
             if ($id) {
-                // $request["id"] = $id;
                 $query_result = $this->lms->table("lms_logs")->where("id", $id)->get();
                 $this->lms->commit();
+
+                // --- Manual casting starts here ---
+                $castInts = function ($item) {
+                    if (!$item) return $item;
+                    $item->id = isset($item->id) ? (int) $item->id : null;
+                    $item->quiz_id = isset($item->quiz_id) ? (int) $item->quiz_id : null;
+                    $item->user_id = isset($item->user_id) ? (int) $item->user_id : null;
+                    return $item;
+                };
+
+                if ($query_result instanceof \Illuminate\Support\Collection) {
+                    $query_result = $query_result->map(function ($item) use ($castInts) {
+                        return $castInts($item);
+                    });
+                } else {
+                    $query_result = $castInts($query_result);
+                }
+                // --- End manual casting ---
+
                 return $this->response->buildApiResponse($query_result, $this->response_columns);
             } else {
                 $this->lms->rollBack();
@@ -363,6 +377,7 @@ class LogsController extends Controller {
             return $this->response->errorResponse($e);
         }
     }
+
 
     public function put(Request $request, $id) {
     }
