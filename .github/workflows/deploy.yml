@@ -1,9 +1,9 @@
-name: Deploy LMS Staging Backend to cPanel
+name: Deploy LMS Stable Backend to cPanel
 
 on:
   push:
     branches:
-      - staging # Trigger on push to the lms staging branch
+      - stable # Trigger on push to the lms stable branch
 
 jobs:
   deploy:
@@ -21,35 +21,32 @@ jobs:
           php-version: "8.2"
           tools: composer, php-cs-fixer
           extensions: mbstring, xml, ctype, json, pdo, tokenizer, bcmath, gd
-      
+
       # Clone interlinkiq-backend repository
       - name: Clone interlinkiq-backend repository
         run: |
           git clone https://USERNAME:${{ secrets.PERSONAL_TOKEN }}@github.com/consultareinc-group/interlinkiq-backend.git
           cd interlinkiq-backend
-          git checkout base
+          git checkout lms-stable
           cd ../
-          
+
           mkdir -p interlinkiq-backend/app/Http/Controllers/LMS
-          
+
           # Move files EXCEPT the cloned repository itself
           shopt -s extglob  # Enable extended globbing
           mv !(interlinkiq-backend) interlinkiq-backend/app/Http/Controllers/LMS
           shopt -u extglob  # Disable extended globbing
-
       # Update CORS configuration
       - name: Update CORS settings
         run: |
           cd interlinkiq-backend
           sed -i "s|'allowed_origins' => \['\*'\]|'allowed_origins' => ['https://trainingace.pro', 'https://www.trainingace.pro']|" config/cors.php
           sed -i "s|'supports_credentials' => false|'supports_credentials' => true|" config/cors.php
-
       # Update JWT secret
       - name: Update JWT secret
         run: |
           cd interlinkiq-backend
           sed -i "s|'secret' => env('JWT_SECRET')|'secret' => '${{ secrets.JWT_SECRET }}'|" config/jwt.php
-
       # Update Mail configuration
       # - name: Update Mail settings
       #   run: |
@@ -70,24 +67,24 @@ jobs:
         run: |
           cd interlinkiq-backend
           sed -i "s|'default' => env('DB_CONNECTION', 'mysql')|'default' => 'mysql'|" config/database.php
-          sed -i "s|'database' => 'cig_core_accounts_db'|'database' => '${{ secrets.STAGING_CIG_DB_NAME }}'|" config/database.php
-          sed -i "s|'username' => 'root'|'username' => '${{ secrets.STAGING_CIG_DB_USERNAME }}'|" config/database.php
-          STAGING_CIG_DB_PASSWORD=$(printf '%s' "${{ secrets.STAGING_CIG_DB_PASSWORD }}" | sed 's/[&/\]/\\&/g')
-          sed -i "s|'password' => ''|'password' => '$STAGING_CIG_DB_PASSWORD'|" config/database.php
-         
+          sed -i "s|'database' => 'cig_core_accounts_db'|'database' => '${{ secrets.CIG_DB_NAME }}'|" config/database.php
+          sed -i "s|'username' => 'root'|'username' => '${{ secrets.CIG_DB_USERNAME }}'|" config/database.php
+          CIG_DB_PASSWORD=$(printf '%s' "${{ secrets.CIG_DB_PASSWORD }}" | sed 's/[&/\]/\\&/g')
+          sed -i "s|'password' => ''|'password' => '$CIG_DB_PASSWORD'|" config/database.php
+
           sed -i "s|'system_database_connection'|'lms'|" config/database.php
-          sed -i "s|'database' => 'system_database_name'|'database' => '${{ secrets.STAGING_LMS_DB_NAME }}'|" config/database.php
-          sed -i "s|'username' => 'system_database_username'|'username' => '${{ secrets.STAGING_LMS_DB_USERNAME }}'|" config/database.php
-          STAGING_LMS_DB_PASSWORD=$(printf '%s' "${{ secrets.STAGING_LMS_DB_PASSWORD }}" | sed 's/[&/\]/\\&/g')
-          sed -i "s|'password' => 'system_database_password'|'password' => '$STAGING_LMS_DB_PASSWORD'|" config/database.php
-   
-      # Update Routes Api 
+          sed -i "s|'database' => 'system_database_name'|'database' => '${{ secrets.LMS_DB_NAME }}'|" config/database.php
+          sed -i "s|'username' => 'system_database_username'|'username' => '${{ secrets.LMS_DB_USERNAME }}'|" config/database.php
+          LMS_DB_PASSWORD=$(printf '%s' "${{ secrets.LMS_DB_PASSWORD }}" | sed 's/[&/\]/\\&/g')
+          sed -i "s|'password' => 'system_database_password'|'password' => '$LMS_DB_PASSWORD'|" config/database.php
+
+      # Update Routes Api
       - name: Update Routes Api settings
         run: |
           cd interlinkiq-backend
           sed -i "s|SystemName|LMS|" routes/api.php
           sed -i "s|SystemRouteController|LMSRouteController|" routes/api.php
-    
+
       # Update Public paths
       - name: Update Public settings
         run: |
@@ -95,7 +92,6 @@ jobs:
           sed -i "s|/../storage/framework/maintenance.php|/raw_files/storage/framework/maintenance.php|" public/index.php
           sed -i "s|/../vendor/autoload.php|/raw_files/vendor/autoload.php|" public/index.php
           sed -i "s|/../bootstrap/app.php|/raw_files/bootstrap/app.php|" public/index.php
-
       # Deploy to cPanel using  SSH
       - name: Deploy to cPanel
         env:
@@ -107,20 +103,16 @@ jobs:
           cd interlinkiq-backend
           # Start SSH agent
           eval "$(ssh-agent -s)"
-
           # Add SSH private key to the agent
           echo "$SSH_PRIVATE_KEY" | ssh-add -
-
           # Test SSH connection
           ssh -o StrictHostKeyChecking=no -p $SSH_PORT $CPANEL_USER@$CPANEL_HOST "echo 'SSH connection successful!'"
-
           # Upload Laravel files using rsync
           rsync -avz --exclude="node_modules" --exclude=".git" --exclude=".github" \
-            -e "ssh -p $SSH_PORT" ./ $CPANEL_USER@$CPANEL_HOST:public_html/staging_backend/raw_files/
-
+            -e "ssh -p $SSH_PORT" ./ $CPANEL_USER@$CPANEL_HOST:public_html/certification_backend/raw_files/
           # SSH into the server and run necessary commands
           ssh -p $SSH_PORT $CPANEL_USER@$CPANEL_HOST << EOF
-            cd ~/public_html/staging_backend/raw_files
+            cd ~/public_html/certification_backend/raw_files
             rm -rf vendor composer.lock
             composer install --no-dev --optimize-autoloader
             php artisan config:cache
@@ -128,8 +120,7 @@ jobs:
             php artisan view:cache
             php artisan storage:link
             chmod -R 775 storage bootstrap/cache
-            mv ~/public_html/staging_backend/raw_files/public/* ~/public_html/staging_backend/
-            mv ~/public_html/staging_backend/raw_files/public/.htaccess ~/public_html/staging_backend/.htaccess
+            mv ~/public_html/certification_backend/raw_files/public/* ~/public_html/certification_backend/
+            mv ~/public_html/certification_backend/raw_files/public/.htaccess ~/public_html/certification_backend/.htaccess
           EOF
-
           echo "Deployment to cPanel completed."
