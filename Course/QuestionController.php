@@ -4,7 +4,8 @@
  *
  * replace the SystemName based on the Folder
  *
-*/
+ */
+
 namespace App\Http\Controllers\LMS\Course;
 
 use Illuminate\Http\Request;
@@ -17,24 +18,22 @@ use App\Helpers\ResponseHelper;
  *
  * replace the ApiController based on the module name + ApiController ex. moduleNameApiController
  *
-*/
-class QuestionController extends Controller
-{
+ */
+class QuestionController extends Controller {
 
     protected $response;
     protected $db;
-    public function __construct(Request $request)
-    {
+    public function __construct(Request $request) {
         $this->response = new ResponseHelper($request);
         /**
          *
          *  Rename lms based on preferred database on database.php
          *
-        */
+         */
         $this->db = DB::connection("lms");
     }
 
-     /**
+    /**
      *
      * modify accepted parameters
      *
@@ -64,28 +63,30 @@ class QuestionController extends Controller
     protected $table_choices = 'lms_choices';
 
 
-    public function get(Request $params, $id = null){
+    public function get(Request $params, $id = null) {
 
-        try{
+        try {
 
             $query_result = [];
 
             //This section is intended for fetching specific question record
             if ($id) {
-                $this->response_columns = ["lms_questions.id as id", "question_text", "marks", "date_time_added", "date_time_updated", "lms_choices.id as choice_id", "lms_choices.choice_text","lms_choices.explanation","lms_choices.is_correct"];
+                $this->response_columns = ["lms_questions.id as id", "question_text", "marks", "date_time_added", "date_time_updated", "lms_choices.id as choice_id", "lms_choices.choice_text", "lms_choices.explanation", "lms_choices.is_correct"];
                 $query_result = $this->db->table($this->table_questions)->select($this->response_columns)->where('is_deleted', '=', 0)->where("{$this->table_questions}.id", $id)->leftJoin("lms_choices", "{$this->table_questions}.id", '=', "lms_choices.question_id")->get();
-
 
                 // Group choices under each question
                 $groupedQuestions = [];
                 foreach ($query_result as $row) {
-                    $questionId = $row->id;
+                    $questionId = (int)$row->id;
 
                     // Initialize the question if not already set
                     if (!isset($groupedQuestions[$questionId])) {
                         $groupedQuestions[$questionId] = [
-                            'id' => $row->id,
-                            'question_text' => $row->question_text,
+                            'id' => (int)$row->id,
+                            'question_text' => (string)$row->question_text,
+                            'marks' => isset($row->marks) ? (int)$row->marks : null,
+                            'date_time_added' => (string)$row->date_time_added,
+                            'date_time_updated' => (string)$row->date_time_updated,
                             'choices' => []
                         ];
                     }
@@ -93,10 +94,10 @@ class QuestionController extends Controller
                     // Add choice information to the question's choices
                     if (!is_null($row->choice_text)) {
                         $groupedQuestions[$questionId]['choices'][] = [
-                            'id' => $row->choice_id,
-                            'choice_text' => $row->choice_text,
-                            'explanation' => $row->explanation,
-                            'is_correct' => $row->is_correct
+                            'id' => isset($row->choice_id) ? (int)$row->choice_id : null,
+                            'choice_text' => (string)$row->choice_text,
+                            'explanation' => isset($row->explanation) ? (string)$row->explanation : null,
+                            'is_correct' => isset($row->is_correct) ? (int)$row->is_correct : 0
                         ];
                     }
                 }
@@ -106,27 +107,26 @@ class QuestionController extends Controller
                 $query_result = $finalResult;
                 // Define new response columns customed for questions and choices
                 $this->response_columns = ["id", "question_text", "marks", "date_time_added", "date_time_updated", "choices"];
-
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
-                $this->response_columns = ["lms_questions.id as id", "question_text", "marks", "date_time_added", "date_time_updated", "lms_choices.choice_text","lms_choices.explanation","lms_choices.is_correct"];
+                $this->response_columns = ["lms_questions.id as id", "question_text", "marks", "date_time_added", "date_time_updated", "lms_choices.id as choice_id", "lms_choices.choice_text", "lms_choices.explanation", "lms_choices.is_correct"];
                 $query_result = $this->db->table($this->table_questions)->select($this->response_columns)->where('is_deleted', '=', 0)->where('quiz_id', $params->query('quiz_id'))->leftJoin("lms_choices", "{$this->table_questions}.id", '=', "lms_choices.question_id")->offset(trim($params->query('offset'), '"'))->limit(1000)->get();
-
 
                 // Group choices under each question
                 $groupedQuestions = [];
                 foreach ($query_result as $row) {
-                    $questionId = $row->id;
+                    $questionId = (int)$row->id;
 
                     // Initialize the question if not already set
                     if (!isset($groupedQuestions[$questionId])) {
                         $groupedQuestions[$questionId] = [
-                            'id' => $row->id,
-                            'question_text' => $row->question_text,
-                            'date_time_added' => $row->date_time_added,
-                            'date_time_updated' => $row->date_time_updated,
+                            'id' => (int)$row->id,
+                            'question_text' => (string)$row->question_text,
+                            'marks' => isset($row->marks) ? (int)$row->marks : null,
+                            'date_time_added' => (string)$row->date_time_added,
+                            'date_time_updated' => (string)$row->date_time_updated,
                             'choices' => []
                         ];
                     }
@@ -134,9 +134,10 @@ class QuestionController extends Controller
                     // Add choice information to the question's choices
                     if (!is_null($row->choice_text)) {
                         $groupedQuestions[$questionId]['choices'][] = [
-                            'choice_text' => $row->choice_text,
-                            'explanation' => $row->explanation,
-                            'is_correct' => $row->is_correct
+                            'id' => isset($row->choice_id) ? (int)$row->choice_id : null,
+                            'choice_text' => (string)$row->choice_text,
+                            'explanation' => isset($row->explanation) ? (string)$row->explanation : null,
+                            'is_correct' => isset($row->is_correct) ? (int)$row->is_correct : 0
                         ];
                     }
                 }
@@ -150,28 +151,27 @@ class QuestionController extends Controller
 
             // This section is intended for table search
             if ($params->has('search_keyword')) {
-                $this->response_columns = ["lms_questions.id as id", "question_text", "marks", "date_time_added", "date_time_updated", "lms_choices.choice_text","lms_choices.explanation","lms_choices.is_correct"];
+                $this->response_columns = ["lms_questions.id as id", "question_text", "marks", "date_time_added", "date_time_updated", "lms_choices.id as choice_id", "lms_choices.choice_text", "lms_choices.explanation", "lms_choices.is_correct"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $query_result = $this->db->table($this->table_questions)->select($this->response_columns)->where('is_deleted', '=', 0)->where('quiz_id', $params->query('quiz_id'))->where(function ($query) use ($keyword) {
                     $query->where('choice_text', 'like', '%' . $keyword . '%')
-                          ->orWhere('question_text', 'like', '%' . $keyword . '%')
-                          ->orWhere('marks', 'like', '%' . $keyword . '%');
+                        ->orWhere('question_text', 'like', '%' . $keyword . '%')
+                        ->orWhere('marks', 'like', '%' . $keyword . '%');
                 })->leftJoin("lms_choices", "{$this->table_questions}.id", '=', "lms_choices.question_id")->offset(trim($params->query('offset'), '"'))->limit(1000)->get();
-
 
                 // Group choices under each question
                 $groupedQuestions = [];
                 foreach ($query_result as $row) {
-                    $questionId = $row->id;
+                    $questionId = (int)$row->id;
 
                     // Initialize the question if not already set
                     if (!isset($groupedQuestions[$questionId])) {
                         $groupedQuestions[$questionId] = [
-                            'id' => $row->id,
-                            'question_text' => $row->question_text,
-                            'marks' => $row->marks,
-                            'date_time_added' => $row->date_time_added,
-                            'date_time_updated' => $row->date_time_updated,
+                            'id' => (int)$row->id,
+                            'question_text' => (string)$row->question_text,
+                            'marks' => isset($row->marks) ? (int)$row->marks : null,
+                            'date_time_added' => (string)$row->date_time_added,
+                            'date_time_updated' => (string)$row->date_time_updated,
                             'choices' => []
                         ];
                     }
@@ -179,9 +179,10 @@ class QuestionController extends Controller
                     // Add choice information to the question's choices
                     if (!is_null($row->choice_text)) {
                         $groupedQuestions[$questionId]['choices'][] = [
-                            'choice_text' => $row->choice_text,
-                            'explanation' => $row->explanation,
-                            'is_correct' => $row->is_correct
+                            'id' => isset($row->choice_id) ? (int)$row->choice_id : null,
+                            'choice_text' => (string)$row->choice_text,
+                            'explanation' => isset($row->explanation) ? (string)$row->explanation : null,
+                            'is_correct' => isset($row->is_correct) ? (int)$row->is_correct : 0
                         ];
                     }
                 }
@@ -194,14 +195,13 @@ class QuestionController extends Controller
             }
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
-
-        }
-        catch(QueryException  $e){
+        } catch (QueryException  $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
     }
-    public function post(Request $request){
+
+    public function post(Request $request) {
 
 
         $request = $request->all();
@@ -211,7 +211,7 @@ class QuestionController extends Controller
             "questions",
         ];
 
-        if(!empty($request)){
+        if (!empty($request)) {
             foreach ($request as $field => $value) {
                 if (!in_array($field, $this->accepted_parameters)) {
                     return $this->response->invalidParameterResponse();
@@ -227,18 +227,17 @@ class QuestionController extends Controller
         //check if the required fields are filled and has values
         foreach ($this->required_fields as $field) {
             if (!array_key_exists($field, $request)) {
-                if(empty($request[$field])){
+                if (empty($request[$field])) {
                     return $this->response->requiredFieldMissingResponse();
                 }
-
             }
         }
 
-        try{
+        try {
 
             $this->db->beginTransaction();
 
-            foreach($request['questions'] as $question) {
+            foreach ($request['questions'] as $question) {
 
 
                 $questions = [
@@ -250,7 +249,7 @@ class QuestionController extends Controller
                 $question_id = $this->db->table($this->table_questions)->insertGetId($questions);
                 $request['id'] = $question_id;
 
-                 // Prepare choices for the current question
+                // Prepare choices for the current question
                 $choices = array_map(function ($choice) use ($question_id) {
                     return [
                         'question_id' => $question_id,
@@ -264,7 +263,7 @@ class QuestionController extends Controller
                 $this->db->table('lms_choices')->insert($choices);
             }
 
-            if($request['id']) {
+            if ($request['id']) {
                 $this->db->commit();
                 $this->response_columns = [
                     "id",
@@ -272,19 +271,16 @@ class QuestionController extends Controller
                     "questions",
                 ];
                 return $this->response->buildApiResponse($request, $this->response_columns);
-            } else{
+            } else {
                 $this->db->rollback();
                 return $this->response->errorResponse("Data Saved Unsuccessfully");
             }
-
-        }
-        catch(QueryException $e){
+        } catch (QueryException $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
-
     }
-    public function put(Request $request, $id){
+    public function put(Request $request, $id) {
 
 
         $request = $request->all();
@@ -295,7 +291,7 @@ class QuestionController extends Controller
             "choices",
         ];
 
-        if(!empty($request)){
+        if (!empty($request)) {
             foreach ($request as $field => $value) {
                 if (!in_array($field, $this->accepted_parameters)) {
                     return $this->response->invalidParameterResponse();
@@ -304,7 +300,7 @@ class QuestionController extends Controller
         }
 
         //check if the Ids matches
-        if($request['id'] != $id){
+        if ($request['id'] != $id) {
             return $this->response->errorResponse("Ids Dont Match");
         }
 
@@ -317,14 +313,13 @@ class QuestionController extends Controller
         //check if the required fields are filled and has values
         foreach ($this->required_fields as $field) {
             if (!array_key_exists($field, $request)) {
-                if(empty($request[$field])){
+                if (empty($request[$field])) {
                     return $this->response->requiredFieldMissingResponse();
                 }
-
             }
         }
 
-        try{
+        try {
 
             $this->db->beginTransaction();
 
@@ -352,7 +347,7 @@ class QuestionController extends Controller
                 }
             }
 
-             // delete choices based on question id
+            // delete choices based on question id
             $result = $this->db->table($this->table_choices)->where('question_id', $id)->delete();
             if (!$result) {
                 $this->db->rollback();
@@ -376,14 +371,9 @@ class QuestionController extends Controller
 
             $this->db->commit();
             return $this->response->buildApiResponse($request, $this->response_columns);
-
-
-
-        }
-        catch(QueryException $e){
+        } catch (QueryException $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
-
     }
 }

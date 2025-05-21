@@ -4,7 +4,8 @@
  *
  * replace the SystemName based on the Folder
  *
-*/
+ */
+
 namespace App\Http\Controllers\LMS\Course;
 
 use Illuminate\Http\Request;
@@ -17,24 +18,22 @@ use App\Helpers\ResponseHelper;
  *
  * replace the ApiController based on the module name + ApiController ex. moduleNameApiController
  *
-*/
-class QuizController extends Controller
-{
+ */
+class QuizController extends Controller {
 
     protected $response;
     protected $db;
-    public function __construct(Request $request)
-    {
+    public function __construct(Request $request) {
         $this->response = new ResponseHelper($request);
         /**
          *
          *  Rename lms based on preferred database on database.php
          *
-        */
+         */
         $this->db = DB::connection("lms");
     }
 
-     /**
+    /**
      *
      * modify accepted parameters
      *
@@ -63,22 +62,44 @@ class QuizController extends Controller
     protected $table_quizzes = 'lms_quizzes';
 
 
-    public function get(Request $params, $id = null){
+    public function get(Request $params, $id = null) {
 
-        try{
+        try {
 
             $query_result = null;
 
             //This section is intended for fetching specific quiz record
             if ($id) {
                 $this->response_columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('id',$id)->first();
+                $query_result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('id', $id)->first();
+
+                if ($query_result) {
+                    $query_result = (array) $query_result;
+                    $query_result['id'] = (int) $query_result['id'];
+                    $query_result['course_id'] = (int) $query_result['course_id'];
+                    $query_result['passing_percentage'] = (float) $query_result['passing_percentage'];
+                }
             }
 
             // This section is intended for pagination
             if ($params->has('offset')) {
                 $this->response_columns = ["id", "course_id", "quiz_name", "passing_percentage", "date_time_added", "date_time_updated"];
-                $query_result = $this->db->table($this->table_quizzes)->select($this->response_columns)->where('is_deleted', '=', 0)->where('course_id', $params->query('course_id'))->offset(trim($params->query('offset'), '"'))->limit(1000)->reorder('id', 'desc')->get();
+                $query_result = $this->db->table($this->table_quizzes)
+                    ->select($this->response_columns)
+                    ->where('is_deleted', '=', 0)
+                    ->where('course_id', $params->query('course_id'))
+                    ->offset(trim($params->query('offset'), '"'))
+                    ->limit(1000)
+                    ->reorder('id', 'desc')
+                    ->get();
+
+                $query_result = $query_result->map(function ($item) {
+                    $item = (array) $item;
+                    $item['id'] = (int) $item['id'];
+                    $item['course_id'] = (int) $item['course_id'];
+                    $item['passing_percentage'] = (float) $item['passing_percentage'];
+                    return $item;
+                });
             }
 
             // This section is intended for table search
@@ -86,26 +107,30 @@ class QuizController extends Controller
                 $this->response_columns = ["id", "quiz_name", "date_time_added"];
                 $keyword = trim($params->query('search_keyword'), '"');
                 $query_result = $this->db->table($this->table_quizzes)
-                ->select($this->response_columns)
-                ->where('is_deleted', '=', 0)
-                ->where(function ($query) use ($keyword) {
-                    $query->where('id', 'like', '%' . $keyword . '%')
-                          ->orWhere('quiz_name', 'like', '%' . $keyword . '%')
-                          ->orWhere('date_time_added', 'like', '%' . $keyword . '%');
-                })
-                ->get();
+                    ->select($this->response_columns)
+                    ->where('is_deleted', '=', 0)
+                    ->where(function ($query) use ($keyword) {
+                        $query->where('id', 'like', '%' . $keyword . '%')
+                            ->orWhere('quiz_name', 'like', '%' . $keyword . '%')
+                            ->orWhere('date_time_added', 'like', '%' . $keyword . '%');
+                    })
+                    ->get();
+
+                $query_result = $query_result->map(function ($item) {
+                    $item = (array) $item;
+                    $item['id'] = (int) $item['id'];
+                    return $item;
+                });
             }
 
             return $this->response->buildApiResponse($query_result, $this->response_columns);
-
-        }
-        catch(QueryException  $e){
+        } catch (QueryException  $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
     }
 
-    public function post(Request $request){
+    public function post(Request $request) {
 
 
         $request = $request->all();
@@ -116,7 +141,7 @@ class QuizController extends Controller
             "passing_percentage",
         ];
 
-        if(!empty($request)){
+        if (!empty($request)) {
             foreach ($request as $field => $value) {
                 if (!in_array($field, $this->accepted_parameters)) {
                     return $this->response->invalidParameterResponse();
@@ -133,14 +158,13 @@ class QuizController extends Controller
         //check if the required fields are filled and has values
         foreach ($this->required_fields as $field) {
             if (!array_key_exists($field, $request)) {
-                if(empty($request[$field])){
+                if (empty($request[$field])) {
                     return $this->response->requiredFieldMissingResponse();
                 }
-
             }
         }
 
-        try{
+        try {
 
             $this->db->beginTransaction();
 
@@ -148,7 +172,7 @@ class QuizController extends Controller
             $request['date_time_added'] = date('Y-m-d H:i:s');
             $request['id'] = $this->db->table($this->table_quizzes)->insertGetId($request);
 
-            if($request['id']) {
+            if ($request['id']) {
                 $this->db->commit();
                 $this->response_columns = [
                     "id",
@@ -156,19 +180,17 @@ class QuizController extends Controller
                     "passing_percentage",
                 ];
                 return $this->response->buildApiResponse($request, $this->response_columns);
-            } else{
+            } else {
                 $this->db->rollback();
                 return $this->response->errorResponse("Data Saved Unsuccessfully");
             }
-        }
-        catch(QueryException $e){
+        } catch (QueryException $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
-
     }
 
-    public function put(Request $request, $id){
+    public function put(Request $request, $id) {
 
         $request = $request->all();
 
@@ -178,7 +200,7 @@ class QuizController extends Controller
             "passing_percentage",
         ];
 
-        if(empty($request)){
+        if (empty($request)) {
             foreach ($request as $field => $value) {
                 if (!in_array($field, $this->accepted_parameters)) {
                     return $this->response->invalidParameterResponse();
@@ -187,7 +209,7 @@ class QuizController extends Controller
         }
 
         //check if the Ids matches
-        if($request['id'] != $id){
+        if ($request['id'] != $id) {
             return $this->response->errorResponse("Ids Dont Match");
         }
 
@@ -200,13 +222,13 @@ class QuizController extends Controller
         //check if the required fields are filled and has values
         foreach ($this->required_fields as $field) {
             if (!array_key_exists($field, $request)) {
-                if(empty($request[$field])){
+                if (empty($request[$field])) {
                     return $this->response->requiredFieldMissingResponse();
                 }
             }
         }
 
-        try{
+        try {
             $this->db->beginTransaction();
 
             // Check if the data hasn't changed.
@@ -222,12 +244,9 @@ class QuizController extends Controller
 
             $this->db->commit();
             return $this->response->buildApiResponse($request, $this->response_columns);
-
-        }
-        catch(QueryException $e){
+        } catch (QueryException $e) {
             // Return validation errors without redirecting
             return $this->response->errorResponse($e);
         }
     }
-
 }

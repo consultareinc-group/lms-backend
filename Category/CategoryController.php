@@ -49,6 +49,16 @@ class CategoryController extends Controller {
                     return $this->response->errorResponse("Category not found.");
                 }
 
+                // Manual type casting for single result
+                $query_result = (object)[
+                    'id' => (int)$query_result->id,
+                    'category_name' => (string)$query_result->category_name,
+                    'category_description' => (string)$query_result->category_description,
+                    'image_file' => (string)$query_result->image_file,
+                    'image_file_tmp' => (string)$query_result->image_file_tmp,
+                    'date_time_added' => (string)$query_result->date_time_added,
+                ];
+
                 // Convert result to an array to maintain consistency
                 $query_result = [$query_result];
             } elseif ($params->has('offset')) {
@@ -59,6 +69,15 @@ class CategoryController extends Controller {
                     ->limit(1000)
                     ->orderBy('id', 'desc')
                     ->get();
+
+                // Manual type casting for collection
+                foreach ($query_result as &$qr) {
+                    $qr->id = (int)$qr->id;
+                    $qr->category_name = (string)$qr->category_name;
+                    $qr->category_description = (string)$qr->category_description;
+                    $qr->image_file = (string)$qr->image_file;
+                    $qr->image_file_tmp = (string)$qr->image_file_tmp;
+                }
             } elseif ($params->has('search_keyword')) {
                 $this->response_columns = ["id", "category_name", "category_description", "image_file", "image_file_tmp"];
                 $keyword = trim($params->query('search_keyword'), '"');
@@ -69,6 +88,15 @@ class CategoryController extends Controller {
                             ->orWhere('category_description', 'like', '%' . $keyword . '%');
                     })
                     ->get();
+
+                // Manual type casting for collection
+                foreach ($query_result as &$qr) {
+                    $qr->id = (int)$qr->id;
+                    $qr->category_name = (string)$qr->category_name;
+                    $qr->category_description = (string)$qr->category_description;
+                    $qr->image_file = (string)$qr->image_file;
+                    $qr->image_file_tmp = (string)$qr->image_file_tmp;
+                }
             }
 
             if ($query_result) {
@@ -92,6 +120,7 @@ class CategoryController extends Controller {
             return $this->response->errorResponse($e->getMessage());
         }
     }
+
 
 
     public function post(Request $request, $id = null) {
