@@ -12,9 +12,9 @@ use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Collection;
 use App\Helpers\ResponseHelper;
 use App\Helpers\UserInfoHelper;
+use App\Helpers\EmailHelper;
 use Carbon\Carbon;
 
 /**
@@ -28,10 +28,12 @@ class LogsController extends Controller {
     protected $lms;
     protected $accounts;
     protected $user_info_helper;
+    protected $email_helper;
 
     public function __construct(Request $request) {
         $this->response = new ResponseHelper($request);
         $this->user_info_helper = new UserInfoHelper();
+        $this->email_helper = new EmailHelper();
 
         /**
          *
@@ -367,6 +369,40 @@ class LogsController extends Controller {
                     $query_result = $castInts($query_result);
                 }
                 // --- End manual casting ---
+
+                // get currently logged in user information
+                $user_info = $this->accounts->table($this->table_user_information)
+                    ->select('first_name', 'last_name', 'middle_name', 'suffix_name', 'email')
+                    ->where('id', $request['user_id'])
+                    ->first();
+
+                // fetch quiz information
+                $quiz_info = $this->lms->table($this->table_quizzes)
+                    ->select('quiz_name')
+                    ->where('id', $request['quiz_id'])
+                    ->first();
+
+                // Send email after successful post
+                $to = 'hr@consultareinc.com';
+
+                $message = '
+                    <img src="https://trainingace.pro/wp-content/uploads/2025/03/cropped-cropped-NO-BG-Training-Ace.pro_-300x100.png" alt="TrainingAce Logo" style="max-width:400px;">
+
+                    <p>A new certificate has been generated in TrainingAce.</p>
+                    <p><strong>Certificate ID:</strong> ' . $id . '</p>
+                    <p><strong>Quiz Name:</strong> ' . htmlspecialchars($quiz_info->quiz_name) . '</p>
+                    <p><strong>Date Completed:</strong> ' . Carbon::parse($request['date_time_completed'])->format('F j, Y ') . '</p>
+                    <p><strong>User Information:</strong></p>
+                    <ul>
+                        <li><strong>Name:</strong> ' . htmlspecialchars(trim($user_info->first_name . ' ' . $user_info->middle_name . ' ' .                 $user_info->last_name . ' ' . $user_info->suffix_name)) . '</li>
+                        <li><strong>Email:</strong> ' . htmlspecialchars($user_info->email) . '</li>
+                    </ul>
+
+                    ';
+
+                $subject = 'New TrainingAce Certificate Generated';
+
+                $this->email_helper->sendEmail($to, $message, $subject);
 
                 return $this->response->buildApiResponse($query_result, $this->response_columns);
             } else {
